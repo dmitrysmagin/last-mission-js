@@ -7,6 +7,7 @@ import {
   SC_ESCAPE, SC_SPACE, SC_ENTER, SC_E,
   MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
   ACTION_SCREEN_HEIGHT,
+  SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT, SND_MOVE, SND_ELEVATOR, SND_CONTACT,
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';

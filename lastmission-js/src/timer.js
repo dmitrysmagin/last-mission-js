@@ -1,31 +1,13 @@
-// Fixed-timestep game loop at ~60fps (16667µs per frame)
-// Mirrors the original synchronize_us() from timer.c
+// Game loop tied to display refresh rate (requestAnimationFrame)
+// One step per frame — matches the display's native rate
 
-const FRAME_TIME_US = 16667; // ~60 fps
-const FRAME_TIME_MS = FRAME_TIME_US / 1000;
-
-let startTime = 0;
-let accumulator = 0;
-
-// Callback signature: (dt_us) => void
-let stepCallback = null;
 let rafId = null;
 let running = false;
+let stepCallback = null;
 
-function frame(now) {
+function frame() {
   if (!running) return;
-
-  const elapsed = now - startTime;
-  startTime = now;
-
-  // Clamp to avoid spiral of death
-  accumulator += Math.min(elapsed, 100);
-
-  while (accumulator >= FRAME_TIME_MS) {
-    accumulator -= FRAME_TIME_MS;
-    if (stepCallback) stepCallback(FRAME_TIME_US);
-  }
-
+  if (stepCallback) stepCallback();
   rafId = requestAnimationFrame(frame);
 }
 
@@ -36,8 +18,6 @@ export function timer_init(callback) {
 export function timer_start() {
   if (running) return;
   running = true;
-  startTime = performance.now();
-  accumulator = 0;
   rafId = requestAnimationFrame(frame);
 }
 
