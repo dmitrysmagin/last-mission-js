@@ -15,7 +15,7 @@ let accumulator = 0;
 function frame(timestamp) {
   if (!running) return;
 
-  if (lastTime !== 0) {
+  /*if (lastTime !== 0) {
     const delta = timestamp - lastTime;
     accumulator += Math.min(delta, MAX_CATCHUP_MS);
 
@@ -29,7 +29,8 @@ function frame(timestamp) {
     if (accumulator > TICK_MS) accumulator = 0;
   }
 
-  lastTime = timestamp;
+  lastTime = timestamp;*/
+  if (stepCallback) stepCallback();
   rafId = requestAnimationFrame(frame);
 }
 
