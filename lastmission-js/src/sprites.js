@@ -1,5 +1,5 @@
 import { SCREEN_WIDTH, SCREEN_HEIGHT, ACTION_SCREEN_HEIGHT } from './constants.js';
-import { ctx } from './video.js';
+import { ctx, palette, spriteBuffer, tileBuffer, SPRITES_WIDTH, TILES_WIDTH } from './video.js';
 
 // ---- SPRITESET definitions (from sprites.c) ----
 // {x, y, w, h, dx, dy, frames}
@@ -65,16 +65,108 @@ const SpriteSet = [
 
 const TILE_SIZE = 8;
 const TILES_PER_ROW = 40;
-const FONT_ROW_OFFSET = 64; // 8 rows * 8px
+// Font starts at tile row 8 (handled in getFontCanvas)
 
-// Pre-processed sprite sheet canvas
-let spritesCanvas = null;
-let spritesData = null;
+// ---- Indexed BMP canvas cache helpers ----
 
-// Pre-processed tile canvases
-let tilesCanvas = null;      // with color key (black transparent)
-let tilesOpaqueCanvas = null; // without color key
-let tilesData = null;        // pixel data for tiles (with key)
+// Convert a region of indexed pixel data to a canvas (RGBA via palette)
+function indexedRegionToCanvas(pixels, bufW, sx, sy, sw, sh, pal, transparent) {
+  if (!pixels || !pal) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  const cctx = canvas.getContext('2d');
+  const imageData = cctx.createImageData(sw, sh);
+  const data = imageData.data;
+
+  for (let dy = 0; dy < sh; dy++) {
+    for (let dx = 0; dx < sw; dx++) {
+      const idx = pixels[(sy + dy) * bufW + (sx + dx)];
+      const off = (dy * sw + dx) * 4;
+      if (transparent && idx === 0) {
+        data[off + 3] = 0; // transparent
+      } else {
+        data[off]     = pal[idx * 3];
+        data[off + 1] = pal[idx * 3 + 1];
+        data[off + 2] = pal[idx * 3 + 2];
+        data[off + 3] = 255;
+      }
+    }
+  }
+
+  cctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+// Cached sprite frame canvases (built from spriteBuffer)
+const spriteFrameCache = new Map();
+
+function getSpriteCanvas(index, frame) {
+  const key = `${index}-${frame}`;
+  let cached = spriteFrameCache.get(key);
+  if (cached) return cached;
+
+  const s = SpriteSet[index];
+  if (!s || frame >= s.n) return null;
+
+  const sx = s.x + s.dx * frame;
+  const sy = s.y + s.dy * frame;
+
+  cached = indexedRegionToCanvas(spriteBuffer, SPRITES_WIDTH, sx, sy, s.w, s.h, palette, true);
+  spriteFrameCache.set(key, cached);
+  return cached;
+}
+
+// Cached tile canvases (8x8, transparent for index 0)
+const tileCache = new Map();
+
+function getTileCanvas(index) {
+  const key = `tile-${index}`;
+  let cached = tileCache.get(key);
+  if (cached) return cached;
+
+  const sx = (index % TILES_PER_ROW) * TILE_SIZE;
+  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
+
+  cached = indexedRegionToCanvas(tileBuffer, TILES_WIDTH, sx, sy, TILE_SIZE, TILE_SIZE, palette, true);
+  tileCache.set(key, cached);
+  return cached;
+}
+
+// Cached font character canvases (from tileBuffer, tile row 8+, no transparency)
+const fontCache = new Map();
+
+function getFontCanvas(index) {
+  const key = `font-${index}`;
+  let cached = fontCache.get(key);
+  if (cached) return cached;
+
+  const col = index % TILES_PER_ROW;
+  const row = ((index / TILES_PER_ROW) | 0) + 8; // font starts at tile row 8
+  const sx = col * TILE_SIZE;
+  const sy = row * TILE_SIZE;
+
+  cached = indexedRegionToCanvas(tileBuffer, TILES_WIDTH, sx, sy, TILE_SIZE, TILE_SIZE, palette, false);
+  fontCache.set(key, cached);
+  return cached;
+}
+
+// Cached background sprite canvases (16x16 from tileBuffer row 6)
+const bgCache = new Map();
+
+function getBgCanvas(index) {
+  const key = `bg-${index}`;
+  let cached = bgCache.get(key);
+  if (cached) return cached;
+
+  const sx = index * 16;
+  const sy = 6 * 16;
+
+  cached = indexedRegionToCanvas(tileBuffer, TILES_WIDTH, sx, sy, 16, 16, palette, true);
+  bgCache.set(key, cached);
+  return cached;
+}
 
 export function GetSpriteW(index) {
   if (index < 0 || index >= SpriteSet.length) return 0;
@@ -86,90 +178,18 @@ export function GetSpriteH(index) {
   return SpriteSet[index].h;
 }
 
-// Apply color key (black → transparent) to a canvas
-function applyColorKey(canvas) {
-  const ctx2 = canvas.getContext('2d');
-  const imageData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0) {
-      data[i + 3] = 0;
-    }
-  }
-  ctx2.putImageData(imageData, 0, 0);
-}
-
-function loadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-export async function LoadSprites() {
-  // Load and process sprites.bmp
-  const spriteImg = await loadImage('graphics/sprites.bmp');
-  spritesCanvas = document.createElement('canvas');
-  spritesCanvas.width = spriteImg.width;
-  spritesCanvas.height = spriteImg.height;
-  const sctx = spritesCanvas.getContext('2d');
-  sctx.drawImage(spriteImg, 0, 0);
-  applyColorKey(spritesCanvas);
-
-  // Load and process tiles.bmp
-  const tileImg = await loadImage('graphics/tiles.bmp');
-  // With color key
-  tilesCanvas = document.createElement('canvas');
-  tilesCanvas.width = tileImg.width;
-  tilesCanvas.height = tileImg.height;
-  const tctx = tilesCanvas.getContext('2d');
-  tctx.drawImage(tileImg, 0, 0);
-  applyColorKey(tilesCanvas);
-
-  // Without color key
-  tilesOpaqueCanvas = document.createElement('canvas');
-  tilesOpaqueCanvas.width = tileImg.width;
-  tilesOpaqueCanvas.height = tileImg.height;
-  const toctx = tilesOpaqueCanvas.getContext('2d');
-  toctx.drawImage(tileImg, 0, 0);
-
-  // Cache pixel data for pixel-level ops
-  spritesData = sctx.getImageData(0, 0, spritesCanvas.width, spritesCanvas.height);
-  tilesData = tctx.getImageData(0, 0, tilesCanvas.width, tilesCanvas.height);
-}
-
-function getSpritePixelData(index, frame) {
-  const s = SpriteSet[index];
-  if (!s || frame >= s.n) return null;
-  const sx = s.x + s.dx * frame;
-  const sy = s.y + s.dy * frame;
-  const w = s.w;
-  const h = s.h;
-  const imgData = spritesData;
-  const result = new Uint8Array(w * h);
-  for (let dy = 0; dy < h; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      const px = sx + dx;
-      const py = sy + dy;
-      const off = (py * imgData.width + px) * 4;
-      result[dy * w + dx] = imgData.data[off + 3]; // alpha
-    }
-  }
-  return { data: result, w, h };
-}
-
 // ---- Rendering primitives ----
 
-// Cache for colored shadow versions - key: "spriteIndex-frame-color", value: canvas
+// Cache for colored shadow versions
 const shadowSpriteCache = new Map();
 // Cache for colored shadow tiles - key: "tileIndex-color", value: canvas
 const shadowTileCache = new Map();
 
-// Helper to create a colored shadow canvas from a source canvas region
-function createColoredShadow(srcCanvas, sx, sy, sw, sh, colorCSS, offsetX, offsetY) {
-  const key = `${sx}-${sy}-${sw}-${sh}-${colorCSS}`;
+// Helper to create a colored shadow canvas from a source canvas region.
+// Optionally accepts a unique cacheKey to avoid collisions when source
+// canvases are pre-cropped (always at origin 0,0).
+function createColoredShadow(srcCanvas, sx, sy, sw, sh, colorCSS, offsetX, offsetY, cacheKey) {
+  const key = cacheKey || `${sx}-${sy}-${sw}-${sh}-${colorCSS}`;
   let cached = shadowSpriteCache.get(key);
   if (cached) return cached;
 
@@ -217,36 +237,32 @@ function createColoredShadow(srcCanvas, sx, sy, sw, sh, colorCSS, offsetX, offse
 }
 
 export function PutSpriteI(x, y, index, frame) {
-  if (!spritesCanvas) return;
-  if (index < 0 || index >= SpriteSet.length) return;
-  const s = SpriteSet[index];
-  if (frame >= s.n) return;
-  const sx = s.x + s.dx * frame;
-  const sy = s.y + s.dy * frame;
-  ctx.drawImage(spritesCanvas, sx, sy, s.w, s.h, x, y, s.w, s.h);
+  const canvas = getSpriteCanvas(index, frame);
+  if (!canvas) return;
+  ctx.drawImage(canvas, x, y);
 }
 
 export function PutSpriteS(x, y, index, frame, colorCSS) {
-  if (!spritesCanvas) return;
   if (index < 0 || index >= SpriteSet.length) return;
   const s = SpriteSet[index];
   if (frame >= s.n) return;
 
-  const shadow = createColoredShadow(spritesCanvas, s.x + s.dx * frame, s.y + s.dy * frame, s.w, s.h, colorCSS, 0, 0);
+  const srcCanvas = getSpriteCanvas(index, frame);
+  if (!srcCanvas) return;
+
+  const cacheKey = `sprite-${index}-${frame}-${colorCSS}`;
+  const shadow = createColoredShadow(srcCanvas, 0, 0, s.w, s.h, colorCSS, 0, 0, cacheKey);
   ctx.drawImage(shadow, x - 1, y - 1);
 }
 
 export function PutTileI(x, y, index) {
-  if (!tilesCanvas) return;
   if (index > 256) return;
-  const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
-  ctx.drawImage(tilesCanvas, sx, sy, TILE_SIZE, TILE_SIZE, x, y, TILE_SIZE, TILE_SIZE);
+  const canvas = getTileCanvas(index);
+  if (!canvas) return;
+  ctx.drawImage(canvas, x, y);
 }
 
-// Optimized PutTileS using cached canvas
 export function PutTileS(x, y, index, colorCSS) {
-  if (!tilesCanvas) return;
   if (index > 256) return;
 
   const key = `${index}-${colorCSS}`;
@@ -256,7 +272,9 @@ export function PutTileS(x, y, index, colorCSS) {
     return;
   }
 
-  // Create offscreen canvas for shadow tile
+  const tileCanvas = getTileCanvas(index);
+  if (!tileCanvas) return;
+
   const offscreen = document.createElement('canvas');
   offscreen.width = TILE_SIZE + 2;
   offscreen.height = TILE_SIZE + 3;
@@ -269,20 +287,15 @@ export function PutTileS(x, y, index, colorCSS) {
   }
   offCtx.fillStyle = cachedStyle;
 
-  // Get tile from tilesCanvas
-  const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
-
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = TILE_SIZE;
   tempCanvas.height = TILE_SIZE;
   const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.drawImage(tilesCanvas, sx, sy, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+  tempCtx.drawImage(tileCanvas, 0, 0);
 
   const imgData = tempCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
   const data = imgData.data;
 
-  // Draw colored pixels at offset positions (same pattern as original)
   for (let dy = 0; dy < TILE_SIZE; dy++) {
     for (let dx = 0; dx < TILE_SIZE; dx++) {
       const off = (dy * TILE_SIZE + dx) * 4;
@@ -302,20 +315,18 @@ export function PutTileS(x, y, index, colorCSS) {
 
 // Background sprites (from row 6 of tiles, 16x16)
 export function PutBgI(x, y, index) {
-  if (!tilesCanvas) return;
   if (index > 9) return;
-  const sx = index * 16;
-  const sy = 6 * 16;
-  ctx.drawImage(tilesCanvas, sx, sy, 16, 16, x, y, 16, 16);
+  const canvas = getBgCanvas(index);
+  if (!canvas) return;
+  ctx.drawImage(canvas, x, y);
 }
 
 // Font rendering (from tiles without color key)
 function PutLetterI(x, y, index) {
-  if (!tilesOpaqueCanvas) return;
   if (index > 256) return;
-  const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE + FONT_ROW_OFFSET;
-  ctx.drawImage(tilesOpaqueCanvas, sx, sy, TILE_SIZE, TILE_SIZE, x, y, TILE_SIZE, TILE_SIZE);
+  const canvas = getFontCanvas(index);
+  if (!canvas) return;
+  ctx.drawImage(canvas, x, y);
 }
 
 function AdjustAscii(a) {
