@@ -4,8 +4,8 @@ import {
   PutTileI, PutTileS, EraseBackground, DrawLine, PutBgI
 } from './sprites.js';
 
-const ROOM_WIDTH = SCREEN_WIDTH / 8;     // 40
-const ROOM_HEIGHT = ACTION_SCREEN_HEIGHT / 8; // 17
+const ROOM_WIDTH = (SCREEN_WIDTH / 8) | 0;     // 40
+const ROOM_HEIGHT = (ACTION_SCREEN_HEIGHT / 8) | 0; // 17
 
 // Tile screen buffer (mirrors unsigned short screen[40*17])
 const screen = new Uint16Array(ROOM_WIDTH * ROOM_HEIGHT);

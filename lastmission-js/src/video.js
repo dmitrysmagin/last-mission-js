@@ -13,8 +13,8 @@ const displayCtx = display.getContext('2d');
 let scale = 1;
 
 function computeScale() {
-  const sx = Math.floor(window.innerWidth / SCREEN_WIDTH);
-  const sy = Math.floor(window.innerHeight / SCREEN_HEIGHT);
+  const sx = ((window.innerWidth / SCREEN_WIDTH) | 0);
+  const sy = ((window.innerHeight / SCREEN_HEIGHT) | 0);
   scale = Math.max(1, Math.min(sx, sy));
 }
 

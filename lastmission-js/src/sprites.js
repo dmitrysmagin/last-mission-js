@@ -192,7 +192,7 @@ export function PutTileI(x, y, index) {
   if (!tilesCanvas) return;
   if (index > 256) return;
   const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = Math.floor(index / TILES_PER_ROW) * TILE_SIZE;
+  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
   ctx.drawImage(tilesCanvas, sx, sy, TILE_SIZE, TILE_SIZE, x, y, TILE_SIZE, TILE_SIZE);
 }
 
@@ -200,7 +200,7 @@ export function PutTileS(x, y, index, colorCSS) {
   if (!tilesData) return;
   if (index > 256) return;
   const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = Math.floor(index / TILES_PER_ROW) * TILE_SIZE;
+  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
   const w = TILE_SIZE, h = TILE_SIZE;
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -232,7 +232,7 @@ function PutLetterI(x, y, index) {
   if (!tilesOpaqueCanvas) return;
   if (index > 256) return;
   const sx = (index % TILES_PER_ROW) * TILE_SIZE;
-  const sy = Math.floor(index / TILES_PER_ROW) * TILE_SIZE + FONT_ROW_OFFSET;
+  const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE + FONT_ROW_OFFSET;
   ctx.drawImage(tilesOpaqueCanvas, sx, sy, TILE_SIZE, TILE_SIZE, x, y, TILE_SIZE, TILE_SIZE);
 }
 

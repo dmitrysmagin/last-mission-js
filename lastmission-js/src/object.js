@@ -534,7 +534,7 @@ function Update_SpareShip(obj) {
   if (pos.y > obj.y) obj.y += speed;
   else if (pos.y < obj.y) obj.y -= speed;
 
-  const middle_frame = (obj.max_frame + obj.min_frame) / 2;
+  const middle_frame = ((obj.max_frame + obj.min_frame) / 2) | 0;
   if (obj.cur_frame > obj.min_frame && obj.cur_frame <= middle_frame)
     obj.cur_frame--;
   else if (obj.cur_frame > middle_frame && obj.cur_frame < obj.max_frame)
@@ -619,7 +619,7 @@ export function BlitBfg() {
     for (let n = 0; n < MAX_BFG_TARGETS; n++) {
       if (BfgTargets[n].ship) {
         let color = 'rgb(85,255,85)';
-        if (BfgTargets[n].hit_count < BFG_KILL_TIME / 2)
+        if (BfgTargets[n].hit_count < ((BFG_KILL_TIME / 2) | 0))
           color = 'rgb(0,170,0)';
         DrawLine(BfgTargets[n].xc, BfgTargets[n].yc, BfgTargets[n].xt, BfgTargets[n].yt, color);
       }
@@ -1343,9 +1343,9 @@ export function gObj_Update(obj) {
 
 function AddScore(update) {
   const points_per_life = 15000;
-  const livesBefore = Math.floor(_game.score / points_per_life);
+  const livesBefore = ((_game.score / points_per_life) | 0);
   _game.score += update;
-  const livesAfter = Math.floor(_game.score / points_per_life);
+  const livesAfter = ((_game.score / points_per_life) | 0);
   _game.lives += (livesAfter - livesBefore);
 }
 

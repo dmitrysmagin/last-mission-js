@@ -362,7 +362,7 @@ function Update_Ship(ship) {
       const xs = gObj_GetWidth(ship);
       const ys = gObj_GetHeight(ship);
       const xb = gObj_GetWidth(base);
-      if ((ship.x + xs / 2 === base.x + xb / 2) && (ship.y + ys === base.y)) {
+      if ((ship.x + ((xs / 2) | 0) === base.x + ((xb / 2) | 0)) && (ship.y + ys === base.y)) {
         game.player_attached = 1;
         // PlaySoundEffect(SND_CONTACT);
       }
@@ -460,7 +460,7 @@ function InitShip() {
   gObj_Constructor(base, AI_BASE);
 
   ship.i = GetPlayerShipIndex();
-  ship.x = 148 + (gObj_GetWidth(base) - gObj_GetWidth(ship)) / 2;
+  ship.x = 148 + ((gObj_GetWidth(base) - gObj_GetWidth(ship)) / 2) | 0;
   ship.y = 68;
   ship.base = base;
   ship.smoke = null;
@@ -628,9 +628,9 @@ function DoWinScreen() {
     win_ticks++;
   }
 
-  PutString(0 - (win_x_string % 8), 20 * 8, win_string.substr(Math.floor(win_x_string / 8), 40));
+  PutString(0 - (win_x_string % 8), 20 * 8, win_string.substr(((win_x_string / 8) | 0), 40));
 
-  if (Math.floor(win_x_string / 8) >= win_string.length)
+  if (((win_x_string / 8) | 0) >= win_string.length)
     win_x_string = 0;
   else
     win_x_string += 1;
