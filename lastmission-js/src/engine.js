@@ -3,8 +3,10 @@ import {
   GM_GAMEOVER, GM_YOUWIN, GM_DEMO, GM_SPLASH, GM_EDITOR,
   SCREEN_WIDTH, STATUS_YPOS,
   KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_FIRE, KEY_PAUSE, KEY_QUIT,
+  SC_LEFT, SC_RIGHT, SC_UP, SC_DOWN,
   SC_ESCAPE, SC_SPACE, SC_ENTER, SC_E,
   MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
+  ACTION_SCREEN_HEIGHT,
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
@@ -31,6 +33,7 @@ import {
   SHIP_TYPE_LASER, SHIP_TYPE_MACHINE_GUN, SHIP_TYPE_ROCKET_LAUNCHER, SHIP_TYPE_BFG, SHIP_TYPE_OBSERVER,
   InitGaragesForNewGame, GetPlayerShipIndex, GarageSave, GarageRestore,
   GOBJ_VISIBLE, GOBJ_SHADOW, GOBJ_DESTROY, GOBJ_SOLID,
+  gObj_CheckTouch
 } from './object.js';
 
 // ============================================================
