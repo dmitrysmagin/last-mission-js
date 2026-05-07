@@ -4,10 +4,11 @@ import {
   SCREEN_WIDTH, STATUS_YPOS,
   KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_FIRE, KEY_PAUSE, KEY_QUIT,
   SC_ESCAPE, SC_SPACE, SC_ENTER, SC_E,
+  MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
-import { PlaySoundEffect, StopSoundEffect } from './sound.js';
+import { PlaySoundEffect, StopSoundEffect, PlayMusic } from './sound.js';
 import { gfx_flip, ClearScreen } from './video.js';
 import {
   PutString, PutSpriteI, PutSpriteS, PutStream, FillScreen, SetClipGameArea, EraseBackground
@@ -73,7 +74,25 @@ let frame_skip = 0;
 export function SetGameMode(newMode) {
   mode = newMode;
   game.mode = newMode;
-  // Music selection omitted for now
+
+  switch (newMode) {
+    case GM_TITLE:
+      PlayMusic(MUSIC_INTRO);
+      break;
+    case GM_GAME:
+    case GM_DEMO:
+      PlayMusic(MUSIC_GAME);
+      break;
+    case GM_GAMEOVER:
+      PlayMusic(MUSIC_INTRO);
+      break;
+    case GM_YOUWIN:
+      PlayMusic(MUSIC_INTRO);
+      break;
+    case GM_SPLASH:
+      PlayMusic(MUSIC_STOP);
+      break;
+  }
 }
 
 export function GameMode() {

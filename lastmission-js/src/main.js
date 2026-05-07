@@ -7,6 +7,7 @@ import { LoadSprites, PutString, PutSpriteI, FillScreen } from './sprites.js';
 import { load_world } from './world.js';
 import { rgb565ToCSS } from './room.js';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from './constants.js';
+import { snd_init } from './sound.js';
 
 async function main() {
   if (!gfx_init()) {
@@ -26,8 +27,11 @@ async function main() {
     const world = await load_world('data/lastmission.dat');
     console.log(`World loaded: ${world.room_num} rooms, ${world.mapw}x${world.maph} map`);
 
-    await LoadSprites();
-    console.log('Sprites loaded');
+    await Promise.all([
+      LoadSprites(),
+      snd_init(),
+    ]);
+    console.log('Sprites and sounds loaded');
 
     const step = GameLoop(world);
 
