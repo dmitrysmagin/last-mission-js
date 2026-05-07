@@ -7,10 +7,12 @@ import {
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
+import { PlaySoundEffect, StopSoundEffect } from './sound.js';
 import { gfx_flip, ClearScreen } from './video.js';
 import {
-  PutString, PutSpriteI, PutSpriteS, FillScreen, SetClipGameArea, EraseBackground
+  PutString, PutSpriteI, PutSpriteS, PutStream, FillScreen, SetClipGameArea, EraseBackground
 } from './sprites.js';
+import { STATUSBAR1 } from './data.js';
 import {
   UnpackRoom, BlitRoom, BlitBackground, BlitRoomOutlines, rgb565ToCSS
 } from './room.js';
@@ -19,8 +21,8 @@ import {
   gObj_Constructor, gObj_Update, gObj_Explode, gObj_GetWidth, gObj_GetHeight,
   InitEnemiesFromObjects, CleanupBfg,
   _setGame, _getGame,
-  DoLaser, DoBFG, ResetLaser,
-  BlitLaser, BlitLaserStatus, BlitBfg, BlitEnemies,
+  DoLaser, DoBFG, ResetLaser, UpdateLaserCounter, UpdateAnimation,
+  BlitLaser, BlitLaserStatus, BlitBfg,
   AI_SHIP, AI_BASE, AI_SMOKE, AI_GARAGE, AI_HIDDEN_AREA_ACCESS, AI_LASER, AI_ELEVATOR,
   AI_EXPLOSION, AI_BONUS, AI_RANDOM_MOVE, AI_KAMIKADZE, AI_SHOT, AI_HOMING_SHOT, AI_BFG_SHOT,
   AI_HOMING_MISSLE, AI_BULLET, AI_BRIDGE, AI_SPARE_SHIP, AI_STATIC, AI_CEILING_CANNON,
@@ -60,6 +62,9 @@ const game = {
   rmapx: 0, rmapy: 0,
   world: null,
 };
+
+let screen_procedure = 0;
+let frame_skip = 0;
 
 // ============================================================
 // Engine functions
@@ -117,6 +122,7 @@ function ChangeScreen(flag) {
 
 function InitNewScreen() {
   UnpackRoom(world, game.ship_screen);
+  screen_procedure = world.room[game.ship_screen].procedure;
   InitEnemiesFromObjects(world, game.ship_screen);
 
   if (game.ship_screen === 92) {
@@ -126,6 +132,150 @@ function InitNewScreen() {
     // PublishScore() placeholder
   }
   CleanupBfg();
+}
+
+let mg_timeout = 0;
+
+function DoMachineGun(ship) {
+  if (--mg_timeout < 0) mg_timeout = 0;
+
+  if (GKeys[KEY_FIRE] === 1) {
+    if (UpdateLaserCounter(1)) {
+      gObj_Explode(ship);
+      input_reset();
+      return;
+    }
+
+    if (!mg_timeout) {
+      if (!(ship.cur_frame === ship.min_frame || ship.cur_frame === ship.max_frame))
+        return;
+
+      const bullet = gObj_CreateObject();
+      bullet.i = 50;
+      bullet.x = ship.x + (ship.cur_frame === ship.min_frame ? 32 : -8);
+      bullet.y = ship.y + 5;
+      bullet.dy = 0;
+      bullet.dx = (ship.cur_frame === ship.min_frame) ? 5 : -5;
+      bullet.anim_speed = 4;
+      bullet.anim_speed_cnt = bullet.anim_speed;
+      bullet.move_speed_cnt = bullet.move_speed;
+      bullet.cur_frame = (ship.cur_frame === ship.min_frame) ? 0 : 1;
+      gObj_Constructor(bullet, AI_SHOT);
+      bullet.parent = ship;
+
+      mg_timeout = 20;
+      PlaySoundEffect(SND_SHORT_LASER_SHOOT);
+    }
+  } else {
+    UpdateLaserCounter(-1);
+    mg_timeout = 0;
+  }
+}
+
+let rl_timeout = 0;
+
+function DoRocketLauncher(ship) {
+  if (--rl_timeout < 0) rl_timeout = 0;
+
+  if (GKeys[KEY_FIRE] === 1) {
+    if (!rl_timeout) {
+      if (!(ship.cur_frame === ship.min_frame || ship.cur_frame === ship.max_frame))
+        return;
+
+      const bullet = gObj_CreateObject();
+      bullet.i = 54;
+      bullet.y = ship.y + 1;
+      bullet.dy = 0;
+      bullet.anim_speed = 4;
+      bullet.anim_speed_cnt = bullet.anim_speed;
+      bullet.move_speed_cnt = bullet.move_speed;
+      gObj_Constructor(bullet, AI_HOMING_SHOT);
+      bullet.parent = ship;
+
+      if (ship.cur_frame === ship.min_frame) {
+        bullet.x = ship.x + 32;
+        bullet.dx = 3;
+        bullet.cur_frame = 2;
+        bullet.min_frame = 2;
+        bullet.max_frame = 3;
+      } else {
+        bullet.x = ship.x - 14;
+        bullet.dx = -3;
+        bullet.cur_frame = 0;
+        bullet.max_frame = 1;
+      }
+
+      rl_timeout = 30;
+      PlaySoundEffect(SND_ROCKET_SHOOT);
+    }
+  }
+}
+
+function UpdateLives() {
+  game.lives -= 1;
+  game.health = 3;
+
+  StopSoundEffect(SND_ELEVATOR);
+  StopSoundEffect(SND_MOVE);
+
+  if (game.lives === 0) {
+    SetGameMode(GM_GAMEOVER);
+    input_reset();
+    PutString(8 * 16, 8 * 10, 'HAS PERDIDO');
+    return 1;
+  }
+  return 0;
+}
+
+function RestartLevel() {
+  if (UpdateLives() === 1) return;
+
+  game.player_attached = 0;
+  game.ship_screen = game.base_restart_screen;
+  game.base_screen = game.base_restart_screen;
+  game.elevator_flag = 0;
+
+  game.mapx = game.rmapx;
+  game.mapy = game.rmapy;
+
+  InitShip();
+  InitNewScreen();
+}
+
+function BlitStatus() {
+  for (let i = 0; i < 7; i++) {
+    PutStream(0, STATUS_YPOS + i * 8, STATUSBAR1[i].slice(2));
+  }
+}
+
+function BlitStatusData() {
+  const sb = [];
+
+  // level
+  sb[0] = String(game.level).padStart(2, '0');
+  PutString(8 * 16, STATUS_YPOS + 16, sb[0]);
+
+  // fuel
+  PutString(8 * 14, STATUS_YPOS + 24, String(game.fuel).padStart(4, '0'));
+
+  // score
+  PutString(8 * 10, STATUS_YPOS + 32, String(game.score).padStart(8, '0'));
+
+  // health bar
+  for (let y = 0; y < 3; y++) {
+    const tile = (game.health > y) ? 84 : 88;
+    PutStream(8 * 19, STATUS_YPOS + 8 * (4 - y), [tile, tile, 0]);
+  }
+
+  // laser
+  BlitLaserStatus();
+
+  // lives
+  PutString(8 * 28, STATUS_YPOS + 24, String(game.lives).padStart(2, '0'));
+}
+
+function DestroyHiddenAreaAccess(obj, playEffects) {
+  gObj_DestroyObject(obj);
 }
 
 function GameLevelFromScreen(screen) {
@@ -144,9 +294,10 @@ function ReEnableBase(base) {
   }
 }
 
+let fuel_cnt = 25;
+
 function UpdateFuel() {
-  if (--game._fuel_counter <= 0) {
-    game._fuel_counter = 25;
+  if (fuel_cnt === 0) {
     if (game.fuel === 0) {
       SetGameMode(GM_GAMEOVER);
       input_reset();
@@ -154,8 +305,9 @@ function UpdateFuel() {
       return 1;
     }
     game.fuel -= 1;
+    fuel_cnt = 25;
   } else {
-    // counter was already decremented
+    fuel_cnt -= 1;
   }
   return 0;
 }
@@ -168,10 +320,10 @@ function Update_Ship(ship) {
   // Weapon dispatch
   switch (ship.i) {
     case SHIP_TYPE_ROCKET_LAUNCHER:
-      // DoRocketLauncher
+      DoRocketLauncher(ship);
       break;
     case SHIP_TYPE_MACHINE_GUN:
-      // DoMachineGun
+      DoMachineGun(ship);
       break;
     case SHIP_TYPE_BFG:
       DoBFG(ship);
@@ -194,7 +346,7 @@ function Update_Ship(ship) {
     }
   }
 
-  if (game.player_attached === 1 || ship.state === 0) return;
+  if (game.player_attached === 1 || UpdateFuel() === 1 || ship.state === 0) return;
 
   // Movement
   if (GKeys[KEY_RIGHT] === 1) {
@@ -325,13 +477,13 @@ function InitNewGame() {
   game.level = GameLevelFromScreen(1);
   game.player_attached = 0;
   game.hidden_level_entered = 0;
-  game._fuel_counter = 25;
   game.rmapx = game.mapx = 0;
   game.rmapy = game.mapy = 11;
 
   InitGaragesForNewGame();
   InitShip();
   InitNewScreen();
+  BlitStatus();
 }
 
 function RenderGame(renderStatus) {
@@ -369,7 +521,7 @@ function RenderGame(renderStatus) {
   SetClipGameArea(0);
 
   if (renderStatus) {
-    // BlitStatusData would go here
+    BlitStatusData();
   }
 }
 
@@ -377,50 +529,137 @@ function RenderGame(renderStatus) {
 // DoGame state machine
 // ============================================================
 
+let title_start_flag = 0;
+let youwin_start_flag = 0;
+
+function DoKeys() {
+  if (mode !== GM_DEMO) {
+    GKeys[KEY_LEFT] = Keys[SC_LEFT] ? 1 : 0;
+    GKeys[KEY_RIGHT] = Keys[SC_RIGHT] ? 1 : 0;
+    GKeys[KEY_UP] = Keys[SC_UP] ? 1 : 0;
+    GKeys[KEY_DOWN] = Keys[SC_DOWN] ? 1 : 0;
+    GKeys[KEY_FIRE] = Keys[SC_SPACE] ? 1 : 0;
+    GKeys[KEY_PAUSE] = Keys[SC_ENTER] ? 1 : 0;
+    GKeys[KEY_QUIT] = Keys[SC_ESCAPE] ? 1 : 0;
+  }
+}
+
+function DoSplash() {
+  if (!world || world.room.length <= 1) {
+    ClearScreen();
+    PutString(40, 100, 'ERROR CARGANDO DATOS');
+    mode = GM_TITLE;
+    return;
+  }
+  ClearScreen();
+  PutString(80, 100, 'THE LAST MISSION');
+  PutString(88, 120, 'SDL - JS PORT');
+  if (input_anykey()) {
+    input_reset();
+    ClearScreen();
+    SetGameMode(GM_TITLE);
+  }
+}
+
+function DoTitle() {
+  if (title_start_flag === 0) {
+    ClearScreen();
+    game.ship_screen = 0;
+    title_start_flag = 1;
+    InitNewScreen();
+    BlitRoom();
+    PutSpriteI(50 * 4, 108, 45, 0);
+    PutString(76, 88, 'ESPACIO PARA COMENZAR');
+    PutString(60, 24, 'ORIGINAL GAME: PEDRO RUIZ');
+    PutString(76, 36, 'REMAKE: DMITRY SMAGIN');
+    PutString(140, 44, 'ALEXEY PAVLOV');
+    PutString(60, 56, 'MUSIC AND SFX: MARK BRAGA');
+  }
+
+  if (Keys[SC_ESCAPE]) { mode = GM_EXIT; return; }
+
+  if (Keys[SC_SPACE] || Keys[SC_ENTER]) {
+    game.easy_mode = 1;
+    ClearScreen();
+    SetGameMode(GM_GAME);
+    input_reset();
+    InitNewGame();
+  }
+}
+
+function DoWinScreen() {
+  const win_string =
+    '                                        ' +
+    'ATENCION    ATENCION     TRANSMISION A LA NAVE EXPLORER           ' +
+    'HAS CUMPLIDO TU ULTIMA MISION Y DEBES RETORNAR AL PLANETA NOVA DE LA GALAXIA TRAION' +
+    '                                        ' +
+    'TU LUCHA NO HA SIDO EN VANO PUES LA LEJANA COLONIA DEL IMPERIO LLAMADA TIERRA HA SIDO ' +
+    'LIBERADA DE LOS INVASORES Y PUEDE SER HABITADA DE NUEVO               REPITO  MENSAJE';
+
+  if (youwin_start_flag === 0) {
+    FillScreen(0, 144, SCREEN_WIDTH, 56, 'rgb(0,0,0)');
+    youwin_start_flag = 1;
+    win_x_string = 0;
+    win_ticks = 0;
+  } else {
+    win_ticks++;
+  }
+
+  PutString(0 - (win_x_string % 8), 20 * 8, win_string.substr(Math.floor(win_x_string / 8), 40));
+
+  if (Math.floor(win_x_string / 8) >= win_string.length)
+    win_x_string = 0;
+  else
+    win_x_string += 1;
+
+  if (input_anykey() && win_ticks > 300) {
+    SetGameMode(GM_TITLE);
+    input_reset();
+  } else {
+    const ship = gObj_Ship();
+    if (ship) {
+      GKeys[KEY_RIGHT] = (ship.x < 93) ? 1 : 0;
+      GKeys[KEY_LEFT] = 0;
+      GKeys[KEY_UP] = (ship.x < 93 && ship.y > 40) ? 1 : 0;
+      GKeys[KEY_DOWN] = 0;
+      GKeys[KEY_FIRE] = 0;
+
+      Update_Ship(ship);
+
+      let gobj = gObj_First();
+      for (; gobj; gobj = gObj_Next(gobj)) {
+        UpdateAnimation(gobj);
+      }
+
+      if (!frame_skip)
+        RenderGame(0);
+    }
+  }
+}
+
+let win_x_string = 0;
+let win_ticks = 0;
+
 function DoGame() {
   switch (mode) {
     case GM_SPLASH:
-      ClearScreen();
-      PutString(80, 100, 'THE LAST MISSION');
-      PutString(88, 120, 'SDL - JS PORT');
-      PutString(96, 140, 'PHASE 3');
-      mode = GM_TITLE;
+      DoSplash();
       break;
 
     case GM_TITLE:
-      if (world && world.room.length > 1) {
-        // Render room 1 to prove everything works
-        UnpackRoom(world, 1);
-        BlitBackground(world, 1);
-        BlitRoom();
-        PutSpriteI(148, 68, 0, 0);
-        PutSpriteI(148, 104, 1, 0);
-      } else {
-        ClearScreen();
-        PutString(40, 100, 'WORLD DATA NOT LOADED');
-      }
-      PutString(80, 224, 'ESC - SALIR  ESP - JUGAR');
-
-      if (Keys[SC_ESCAPE]) { mode = GM_EXIT; }
-      if (Keys[SC_SPACE] || Keys[SC_ENTER]) {
-        game.easy_mode = 1;
-        ClearScreen();
-        SetGameMode(GM_GAME);
-        input_reset();
-        InitNewGame();
-      }
+      DoTitle();
       break;
 
-    case GM_GAME:
     case GM_DEMO:
-      // Game keys
-      GKeys[KEY_LEFT] = Keys[SC_LEFT] ? 1 : 0;
-      GKeys[KEY_RIGHT] = Keys[SC_RIGHT] ? 1 : 0;
-      GKeys[KEY_UP] = Keys[SC_UP] ? 1 : 0;
-      GKeys[KEY_DOWN] = Keys[SC_DOWN] ? 1 : 0;
-      GKeys[KEY_FIRE] = Keys[SC_SPACE] ? 1 : 0;
-      GKeys[KEY_PAUSE] = Keys[SC_ENTER] ? 1 : 0;
-      GKeys[KEY_QUIT] = Keys[SC_ESCAPE] ? 1 : 0;
+      if (input_anykey()) {
+        SetGameMode(GM_TITLE);
+        input_reset();
+        game.score = 0;
+        break;
+      }
+
+    case GM_GAME:
+      DoKeys();
 
       if (GKeys[KEY_PAUSE]) {
         PutString(8 * 17, 8 * 17, 'PAUSA');
@@ -432,6 +671,12 @@ function DoGame() {
       if (Keys[SC_ESCAPE]) {
         ClearScreen();
         SetGameMode(GM_TITLE);
+        input_reset();
+        break;
+      }
+
+      if (screen_procedure === 3) {
+        SetGameMode(GM_YOUWIN);
         input_reset();
         break;
       }
@@ -448,17 +693,17 @@ function DoGame() {
         gObj_Update(gobj);
       }
 
-      RenderGame(1);
+      if (!frame_skip)
+        RenderGame(1);
+
+      if (game._needsRestart) {
+        game._needsRestart = 0;
+        RestartLevel();
+      }
       break;
 
     case GM_PAUSE:
-      GKeys[KEY_LEFT] = Keys[SC_LEFT] ? 1 : 0;
-      GKeys[KEY_RIGHT] = Keys[SC_RIGHT] ? 1 : 0;
-      GKeys[KEY_UP] = Keys[SC_UP] ? 1 : 0;
-      GKeys[KEY_DOWN] = Keys[SC_DOWN] ? 1 : 0;
-      GKeys[KEY_FIRE] = Keys[SC_SPACE] ? 1 : 0;
-      GKeys[KEY_PAUSE] = Keys[SC_ENTER] ? 1 : 0;
-      GKeys[KEY_QUIT] = Keys[SC_ESCAPE] ? 1 : 0;
+      DoKeys();
 
       if (GKeys[KEY_PAUSE]) {
         PutString(8 * 17, 8 * 17, '     ');
@@ -475,6 +720,7 @@ function DoGame() {
       break;
 
     case GM_YOUWIN:
+      DoWinScreen();
       break;
 
     case GM_EDITOR:

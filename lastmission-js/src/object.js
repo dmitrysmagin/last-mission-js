@@ -236,7 +236,7 @@ function FacingRight(ship) {
 
 let laser_overload = 0;
 
-function UpdateLaserCounter(delta) {
+export function UpdateLaserCounter(delta) {
   laser_overload += delta;
   if (laser_overload > 32 * 8 - 1) {
     laser_overload = 0;
@@ -368,14 +368,14 @@ function Update_Laser(obj) {
 let garage_data = new Array(MAX_GARAGES).fill(null).map(() => [0, 0]);
 let main_garage_data = new Array(MAX_GARAGES).fill(null).map(() => [0, 0]);
 
-function GarageRestore() {
+export function GarageRestore() {
   for (let i = 0; i < MAX_GARAGES; i++) {
     garage_data[i][0] = main_garage_data[i][0];
     garage_data[i][1] = main_garage_data[i][1];
   }
 }
 
-function GarageSave() {
+export function GarageSave() {
   for (let i = 0; i < MAX_GARAGES; i++) {
     main_garage_data[i][0] = garage_data[i][0];
     main_garage_data[i][1] = garage_data[i][1];
@@ -869,7 +869,7 @@ function Update_Explosion(obj) {
     }
 
     if (obj.restart_level) {
-      // RestartLevel will be called from engine
+      _game._needsRestart = 1;
     } else {
       gObj_DestroyObject(obj);
     }
@@ -952,6 +952,8 @@ function Update_Shot(obj) {
   obj.y += obj.dy;
 }
 
+let el_phase = 0;
+
 function Update_Elevator(obj) {
   const ship = gObj_Ship();
   if (!ship) return;
@@ -959,7 +961,6 @@ function Update_Elevator(obj) {
 
   if (_game.player_attached === 1) {
     if (obj.x === base.x - 4) {
-      let el_phase = 0;
 
       _game.elevator_flag = 1;
 
@@ -1223,7 +1224,11 @@ export function gObj_Explode(obj) {
       return;
 
     case AI_HIDDEN_AREA_ACCESS:
-      // DestroyHiddenAreaAccess will be called from engine
+      for (let dy = 0; dy < obj.dy; dy++) {
+        for (let dx = 0; dx < obj.dx; dx++) {
+          SetTileI((obj.x + dx) >> 3, (obj.y + dy) >> 3, 0);
+        }
+      }
       gObj_DestroyObject(obj);
       return;
 
@@ -1264,8 +1269,7 @@ export function gObj_Explode(obj) {
       break;
   }
 
-  // Update score
-  // (UpdateScoreWithShip will be called from engine)
+  UpdateScoreWithShip(obj);
 
   // Breakable walls
   if (obj.i === 6) {
@@ -1334,6 +1338,42 @@ export function gObj_Update(obj) {
 }
 
 // ============================================================
+// Scoring helpers
+// ============================================================
+
+function AddScore(update) {
+  const points_per_life = 15000;
+  const livesBefore = Math.floor(_game.score / points_per_life);
+  _game.score += update;
+  const livesAfter = Math.floor(_game.score / points_per_life);
+  _game.lives += (livesAfter - livesBefore);
+}
+
+export function UpdateScoreWithShip(gobj) {
+  const ship = gObj_Ship();
+  if (!ship) return;
+
+  switch (gobj.ai_type) {
+    case AI_SHIP:
+    case AI_BASE:
+    case AI_BULLET:
+    case AI_SHOT:
+    case AI_BFG_SHOT:
+    case AI_HOMING_SHOT:
+    case AI_BONUS:
+    case AI_ELECTRIC_SPARKLE_VERTICAL:
+    case AI_ELECTRIC_SPARKLE_HORIZONTAL:
+      break;
+    default:
+      let score = gobj.ai_type * 100 * (_game.level & 7) + (RandomInt() & 127);
+      if (_game.easy_mode) score >>= 1;
+      if (ship.i === SHIP_TYPE_ROCKET_LAUNCHER || ship.i === SHIP_TYPE_BFG) score >>= 1;
+      AddScore(score);
+      break;
+  }
+}
+
+// ============================================================
 // Init helpers called from engine.js
 // ============================================================
 
@@ -1396,6 +1436,12 @@ export function InitEnemiesFromObjects(world, screenIdx) {
       en.dx = object.speed;
       en.dy = object.minframe;
       if (_game.hidden_level_entered) {
+        // Clear the tiles that this hidden area access covers
+        for (let dy = 0; dy < en.dy; dy++) {
+          for (let dx = 0; dx < en.dx; dx++) {
+            SetTileI((en.x + dx) >> 3, (en.y + dy) >> 3, 0);
+          }
+        }
         gObj_DestroyObject(en);
       }
     }
