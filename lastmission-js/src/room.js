@@ -122,20 +122,32 @@ export function BlitBackground(world, roomIndex) {
 }
 
 // ---- Color conversion ----
+
+// Cache for rgb565ToCSS to avoid repeated string allocations
+const cssCache = new Map();
+
 export function rgb565ToCSS(color) {
+  let cached = cssCache.get(color);
+  if (cached) return cached;
+
+  let result;
   if (color > 0xFFFFFF) {
     // 32-bit ARGB
     const b = color & 0xFF;
     const g = (color >> 8) & 0xFF;
     const r = (color >> 16) & 0xFF;
-    return `rgb(${r},${g},${b})`;
+    result = `rgb(${r},${g},${b})`;
+  } else {
+    // 16-bit RGB565
+    const r = (color >> 11) & 0x1F;
+    const g = (color >> 5) & 0x3F;
+    const b = color & 0x1F;
+    const rr = (r << 3) | (r >> 2);
+    const gg = (g << 2) | (g >> 4);
+    const bb = (b << 3) | (b >> 2);
+    result = `rgb(${rr},${gg},${bb})`;
   }
-  // 16-bit RGB565
-  const r = (color >> 11) & 0x1F;
-  const g = (color >> 5) & 0x3F;
-  const b = color & 0x1F;
-  const rr = (r << 3) | (r >> 2);
-  const gg = (g << 2) | (g >> 4);
-  const bb = (b << 3) | (b >> 2);
-  return `rgb(${rr},${gg},${bb})`;
+
+  cssCache.set(color, result);
+  return result;
 }

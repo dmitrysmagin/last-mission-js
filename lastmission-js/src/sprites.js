@@ -162,6 +162,60 @@ function getSpritePixelData(index, frame) {
 
 // ---- Rendering primitives ----
 
+// Cache for colored shadow versions - key: "spriteIndex-frame-color", value: canvas
+const shadowSpriteCache = new Map();
+// Cache for colored shadow tiles - key: "tileIndex-color", value: canvas
+const shadowTileCache = new Map();
+
+// Helper to create a colored shadow canvas from a source canvas region
+function createColoredShadow(srcCanvas, sx, sy, sw, sh, colorCSS, offsetX, offsetY) {
+  const key = `${sx}-${sy}-${sw}-${sh}-${colorCSS}`;
+  let cached = shadowSpriteCache.get(key);
+  if (cached) return cached;
+
+  // Create offscreen canvas
+  const offscreen = document.createElement('canvas');
+  offscreen.width = sw + 2; // extra padding for shadow offset
+  offscreen.height = sh + 3;
+  const offCtx = offscreen.getContext('2d');
+
+  // Fill with color
+  let cachedStyle = fillStyleCache.get(colorCSS);
+  if (!cachedStyle) {
+    cachedStyle = colorCSS;
+    fillStyleCache.set(colorCSS, cachedStyle);
+  }
+  offCtx.fillStyle = cachedStyle;
+
+  // Get source alpha data and draw pixels
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = sw;
+  tempCanvas.height = sh;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  const imgData = tempCtx.getImageData(0, 0, sw, sh);
+  const data = imgData.data;
+
+  // Draw colored pixels at original position + offset
+  for (let dy = 0; dy < sh; dy++) {
+    for (let dx = 0; dx < sw; dx++) {
+      const srcOff = (dy * sw + dx) * 4;
+      if (data[srcOff + 3] !== 0) { // alpha > 0
+        // Draw glow pattern at offset positions
+        offCtx.fillRect(dx + offsetX - 1, dy + offsetY, 1, 1);
+        offCtx.fillRect(dx + offsetX + 1, dy + offsetY, 1, 1);
+        offCtx.fillRect(dx + offsetX, dy + offsetY - 1, 1, 1);
+        offCtx.fillRect(dx + offsetX, dy + offsetY + 1, 1, 1);
+        offCtx.fillRect(dx + offsetX, dy + offsetY + 2, 1, 1);
+      }
+    }
+  }
+
+  shadowSpriteCache.set(key, offscreen);
+  return offscreen;
+}
+
 export function PutSpriteI(x, y, index, frame) {
   if (!spritesCanvas) return;
   if (index < 0 || index >= SpriteSet.length) return;
@@ -173,19 +227,13 @@ export function PutSpriteI(x, y, index, frame) {
 }
 
 export function PutSpriteS(x, y, index, frame, colorCSS) {
-  const px = getSpritePixelData(index, frame);
-  if (!px) return;
-  for (let dy = 0; dy < px.h; dy++) {
-    for (let dx = 0; dx < px.w; dx++) {
-      if (px.data[dy * px.w + dx] !== 0) {
-        PutPixel(x + dx - 1, y + dy, colorCSS);
-        PutPixel(x + dx + 1, y + dy, colorCSS);
-        PutPixel(x + dx, y + dy - 1, colorCSS);
-        PutPixel(x + dx, y + dy + 1, colorCSS);
-        PutPixel(x + dx, y + dy + 2, colorCSS);
-      }
-    }
-  }
+  if (!spritesCanvas) return;
+  if (index < 0 || index >= SpriteSet.length) return;
+  const s = SpriteSet[index];
+  if (frame >= s.n) return;
+
+  const shadow = createColoredShadow(spritesCanvas, s.x + s.dx * frame, s.y + s.dy * frame, s.w, s.h, colorCSS, 0, 0);
+  ctx.drawImage(shadow, x - 1, y - 1);
 }
 
 export function PutTileI(x, y, index) {
@@ -196,26 +244,60 @@ export function PutTileI(x, y, index) {
   ctx.drawImage(tilesCanvas, sx, sy, TILE_SIZE, TILE_SIZE, x, y, TILE_SIZE, TILE_SIZE);
 }
 
+// Optimized PutTileS using cached canvas
 export function PutTileS(x, y, index, colorCSS) {
-  if (!tilesData) return;
+  if (!tilesCanvas) return;
   if (index > 256) return;
+
+  const key = `${index}-${colorCSS}`;
+  let cached = shadowTileCache.get(key);
+  if (cached) {
+    ctx.drawImage(cached, x - 1, y - 1);
+    return;
+  }
+
+  // Create offscreen canvas for shadow tile
+  const offscreen = document.createElement('canvas');
+  offscreen.width = TILE_SIZE + 2;
+  offscreen.height = TILE_SIZE + 3;
+  const offCtx = offscreen.getContext('2d');
+
+  let cachedStyle = fillStyleCache.get(colorCSS);
+  if (!cachedStyle) {
+    cachedStyle = colorCSS;
+    fillStyleCache.set(colorCSS, cachedStyle);
+  }
+  offCtx.fillStyle = cachedStyle;
+
+  // Get tile from tilesCanvas
   const sx = (index % TILES_PER_ROW) * TILE_SIZE;
   const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
-  const w = TILE_SIZE, h = TILE_SIZE;
-  for (let dy = 0; dy < h; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      const px = sx + dx;
-      const py = sy + dy;
-      const off = (py * tilesData.width + px) * 4;
-      if (tilesData.data[off + 3] !== 0) {
-        PutPixel(x + dx - 1, y + dy, colorCSS);
-        PutPixel(x + dx + 1, y + dy, colorCSS);
-        PutPixel(x + dx, y + dy - 1, colorCSS);
-        PutPixel(x + dx, y + dy + 1, colorCSS);
-        PutPixel(x + dx, y + dy + 2, colorCSS);
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = TILE_SIZE;
+  tempCanvas.height = TILE_SIZE;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(tilesCanvas, sx, sy, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+
+  const imgData = tempCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE);
+  const data = imgData.data;
+
+  // Draw colored pixels at offset positions (same pattern as original)
+  for (let dy = 0; dy < TILE_SIZE; dy++) {
+    for (let dx = 0; dx < TILE_SIZE; dx++) {
+      const off = (dy * TILE_SIZE + dx) * 4;
+      if (data[off + 3] !== 0) {
+        offCtx.fillRect(dx, dy, 1, 1);
+        offCtx.fillRect(dx + 2, dy, 1, 1);
+        offCtx.fillRect(dx + 1, dy - 1, 1, 1);
+        offCtx.fillRect(dx + 1, dy + 1, 1, 1);
+        offCtx.fillRect(dx + 1, dy + 2, 1, 1);
       }
     }
   }
+
+  shadowTileCache.set(key, offscreen);
+  ctx.drawImage(offscreen, x - 1, y - 1);
 }
 
 // Background sprites (from row 6 of tiles, 16x16)
@@ -267,13 +349,26 @@ export function EraseBackground(colorCSS) {
   FillScreen(0, 0, SCREEN_WIDTH, ACTION_SCREEN_HEIGHT, colorCSS);
 }
 
+// Cache for fillStyle strings to avoid repeated string allocations
+const fillStyleCache = new Map();
+
 export function PutPixel(x, y, colorCSS) {
-  ctx.fillStyle = colorCSS;
+  let cachedStyle = fillStyleCache.get(colorCSS);
+  if (!cachedStyle) {
+    cachedStyle = colorCSS;
+    fillStyleCache.set(colorCSS, cachedStyle);
+  }
+  ctx.fillStyle = cachedStyle;
   ctx.fillRect(x, y, 1, 1);
 }
 
 export function DrawLine(x1, y1, x2, y2, colorCSS) {
-  ctx.strokeStyle = colorCSS;
+  let cachedStyle = fillStyleCache.get(colorCSS);
+  if (!cachedStyle) {
+    cachedStyle = colorCSS;
+    fillStyleCache.set(colorCSS, cachedStyle);
+  }
+  ctx.strokeStyle = cachedStyle;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
