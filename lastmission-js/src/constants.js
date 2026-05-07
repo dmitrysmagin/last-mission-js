@@ -3,6 +3,7 @@ export const SCREEN_WIDTH = 320;
 export const SCREEN_HEIGHT = 240;
 export const ACTION_SCREEN_HEIGHT = 136;
 export const GAME_SCREEN_BPP = 16;
+export const STATUS_YPOS = 144; // ACTION_SCREEN_HEIGHT + 8
 
 // Game modes
 export const GM_EXIT = -1;
