@@ -1,7 +1,7 @@
 import { RandomInt } from './random.js';
 import { GKeys, input_reset } from './input.js';
 import { PlaySoundEffect, StopSoundEffect } from './sound.js';
-import { PutSpriteI, PutSpriteS, PutPixel, DrawLine, GetSpriteW, GetSpriteH } from './sprites.js';
+import { PutSpriteI, PutSpriteS, PutPixel, DrawLine, GetSpriteW, GetSpriteH, SpriteSet } from './sprites.js';
 import { GetTileI, SetTileI, rgb565ToCSS } from './room.js';
 import { Update_Ship, Update_Base, ChangeScreen, InitNewScreen } from './engine.js';
 import {
@@ -1460,6 +1460,13 @@ export function InitEnemiesFromObjects(world, screenIdx) {
     en.min_frame = object.minframe;
     en.cur_frame = object.minframe;
     en.max_frame = object.maxframe;
+
+    // Fix off-by-one: cap max_frame to min_frame + SpriteSet frames - 1
+    const s = SpriteSet[en.i];
+    if (s && en.max_frame >= en.min_frame + s.n) {
+      en.max_frame = en.min_frame + s.n - 1;
+    }
+
     gObj_Constructor(en, object.ai);
     en.move_speed = 1;
     en.move_speed_cnt = 1;
@@ -1478,6 +1485,7 @@ export function InitEnemiesFromObjects(world, screenIdx) {
       en.dy = object.minframe;
       if (_game.hidden_level_entered) {
         // Clear the tiles that this hidden area access covers
+        // Should call DestroyHiddenAreaAccess(en, 0);
         for (let dy = 0; dy < en.dy; dy++) {
           for (let dx = 0; dx < en.dx; dx++) {
             SetTileI((en.x + dx) >> 3, (en.y + dy) >> 3, 0);

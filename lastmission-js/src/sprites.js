@@ -3,7 +3,7 @@ import { ctx, palette, spriteBuffer, tileBuffer, SPRITES_WIDTH, TILES_WIDTH, log
 
 // ---- SPRITESET definitions (from sprites.c) ----
 // {x, y, w, h, dx, dy, frames}
-const SpriteSet = [
+export const SpriteSet = [
   { x: 17*16, y:  3*16, w: 32, h: 12, dx:  0, dy: 16, n: 7  }, // 0 ship
   { x: 12*16, y: 13*16, w: 40, h: 16, dx: 40, dy:  0, n: 2  }, // 1 chassis
   { x:  0*16, y:  0*16, w: 16, h: 16, dx: 16, dy:  0, n: 3  }, // 2 enemy explosion
@@ -50,17 +50,17 @@ const SpriteSet = [
   { x: 12*16, y: 10*16, w:  4, h:  4, dx:  0, dy:  0, n: 1  }, // 43 bullet
   { x: 12*16, y: 11*16, w: 40, h:  8, dx:  0, dy:  0, n: 1  }, // 44 platform
   { x: 12*16, y: 12*16, w: 72, h: 12, dx:  0, dy:  0, n: 1  }, // 45 Opera Soft logo
-  { x:   117,    y:   17, w: 13, h: 13, dx: 13, dy:  0, n: 5  }, // 46 smoke
-  { x:   151,    y:   33, w: 15, h: 15, dx:  0, dy:  0, n: 1  }, // 47 facebook logo
-  { x:   167,    y:   33, w: 15, h: 15, dx:  0, dy:  0, n: 1  }, // 48 twitter logo
-  { x:   243,    y:   86, w: 26, h: 19, dx:  0, dy: 19, n: 4  }, // 49 two astronauts
-  { x:   372,    y:   52, w:  8, h:  2, dx:  0, dy:  3, n: 2  }, // 50 machine gun bullet
-  { x:   334,    y:  3*16, w: 32, h: 12, dx:  0, dy: 16, n: 7  }, // 51 machine gun ship
-  { x:   165,    y:   91, w: 11, h: 12, dx:  0, dy:  0, n: 1  }, // 52 extra HP
-  { x:   303,    y:  3*16, w: 32, h: 12, dx:  0, dy: 16, n: 7  }, // 53 rocket ship
-  { x:   309,    y:   12, w: 14, h:  8, dx:  0, dy:  8, n: 4  }, // 54 rocket
-  { x:   375,    y:  145, w: 16, h: 16, dx:  0, dy: 18, n: 5  }, // 55 BFG
-  { x:   287,    y:  204, w: 10, h: 10, dx: 11, dy:  0, n: 4  }, // 56 BFG shot
+  { x: 117,   y:   17,  w: 13, h: 13, dx: 13, dy:  0, n: 5  }, // 46 smoke
+  { x: 151,   y:   33,  w: 15, h: 15, dx:  0, dy:  0, n: 1  }, // 47 facebook logo
+  { x: 167,   y:   33,  w: 15, h: 15, dx:  0, dy:  0, n: 1  }, // 48 twitter logo
+  { x: 243,   y:   86,  w: 26, h: 19, dx:  0, dy: 19, n: 4  }, // 49 two astronauts
+  { x: 372,   y:   52,  w:  8, h:  2, dx:  0, dy:  3, n: 2  }, // 50 machine gun bullet
+  { x: 334,   y:  3*16, w: 32, h: 12, dx:  0, dy: 16, n: 7  }, // 51 machine gun ship
+  { x: 165,   y:   91,  w: 11, h: 12, dx:  0, dy:  0, n: 1  }, // 52 extra HP
+  { x: 303,   y:  3*16, w: 32, h: 12, dx:  0, dy: 16, n: 7  }, // 53 rocket ship
+  { x: 309,   y:   12,  w: 14, h:  8, dx:  0, dy:  8, n: 4  }, // 54 rocket
+  { x: 375,   y:  145,  w: 16, h: 16, dx:  0, dy: 18, n: 5  }, // 55 BFG
+  { x: 287,   y:  204,  w: 10, h: 10, dx: 11, dy:  0, n: 4  }, // 56 BFG shot
 ];
 
 const TILE_SIZE = 8;
