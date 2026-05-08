@@ -304,3 +304,76 @@ export function free_world(world) {
   world.patternset = [];
   world.map = null;
 }
+
+export function save_world(world) {
+  const lines = [];
+
+  lines.push('LASTMISSION 1', '');
+
+  lines.push(`WORLD ${world.room_num} ${world.patternset_num} ${world.spriteset_num} ${world.tileset_num} ${world.fontset_num} ${world.bgspriteset_num}`, '');
+
+  lines.push(`MAP ${world.maph} ${world.mapw}`);
+  for (let y = 0; y < world.maph; y++) {
+    const row = [];
+    for (let x = 0; x < world.mapw; x++) {
+      row.push(world.map[y * world.mapw + x]);
+    }
+    lines.push(row.join(' '));
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`ROOM ${room.xs} ${room.ys} ${room.pattern_num} ${room.object_num} ${room.bg_type} ${room.bg_num} ${room.background.toString(16)} ${room.shadow.toString(16)} ${room.line_light.toString(16)} ${room.line_shadow.toString(16)} ${room.procedure} ${room.bonus}`);
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`PATTERN ${i}`);
+    for (const p of room.pattern) {
+      lines.push(`${p.x} ${p.y} ${p.index}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`OBJECT ${i}`);
+    for (const o of room.object) {
+      lines.push(`${o.x} ${o.y} ${o.index} ${o.speed} ${o.minframe} ${o.maxframe} ${o.ai} ${o.garage_id}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`BGLINE ${i}`);
+    for (const b of room.bgline) {
+      lines.push(`${b.x1} ${b.y1} ${b.x2} ${b.y2}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.patternset_num; i++) {
+    const pset = world.patternset[i];
+    lines.push(`PATTERNSET ${i} ${pset.xs} ${pset.ys}`);
+    for (let y = 0; y < pset.ys; y++) {
+      const row = [];
+      for (let x = 0; x < pset.xs; x++) {
+        row.push(pset.data[y * pset.xs + x]);
+      }
+      lines.push(row.join(' '));
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'lastmission.dat';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
