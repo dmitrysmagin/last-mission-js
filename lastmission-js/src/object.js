@@ -3,7 +3,7 @@ import { GKeys, input_reset } from './input.js';
 import { PlaySoundEffect, StopSoundEffect } from './sound.js';
 import { PutSpriteI, PutSpriteS, PutPixel, DrawLine, GetSpriteW, GetSpriteH } from './sprites.js';
 import { GetTileI, SetTileI, rgb565ToCSS } from './room.js';
-import { Update_Ship, Update_Base } from './engine.js';
+import { Update_Ship, Update_Base, ChangeScreen, InitNewScreen } from './engine.js';
 import {
   SCREEN_WIDTH, ACTION_SCREEN_HEIGHT,
   SND_LASER_SHOOT, SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT,
@@ -953,71 +953,100 @@ function Update_Shot(obj) {
   obj.y += obj.dy;
 }
 
-let el_phase = 0;
-
 function Update_Elevator(obj) {
   const ship = gObj_Ship();
   if (!ship) return;
   const base = ship.base;
+  if (!base) return;
 
-  if (_game.player_attached === 1) {
-    if (obj.x === base.x - 4) {
+  if (_game.player_attached !== 1) return;
 
-      _game.elevator_flag = 1;
+  // start to lift only when ship and base are standing on the elevator
+  if (obj.x !== base.x - 4) return;
 
-      if (el_phase === 0) {
-        if (obj.y === 120) {
-          for (let j = 0; j <= 5; j++) {
-            SetTileI((obj.x >> 3) + j, obj.y >> 3, 0);
-          }
-        }
+  _game.elevator_flag = 1;
 
-        if (ship.y === 0) {
-          el_phase = 1;
-          const sy = gObj_GetHeight(ship);
-          ship.y = 112 - sy;
-          base.y = 112;
-          // ChangeScreen(F_UP) and InitNewScreen will be called from engine
-          // Create new elevator
-          const newLift = gObj_CreateObject();
-          newLift.i = 21;
-          newLift.x = base.x - 4;
-          newLift.y = 128;
-          gObj_Constructor(newLift, AI_ELEVATOR);
-        }
-      } else {
-        if (base.y === 104) {
-          el_phase = 0;
-          for (let i = 0; i <= 5; i++) {
-            SetTileI(((base.x - 4) >> 3) + i, (base.y + 16) >> 3, 245);
-          }
-          if (_game.ship_screen !== 69) {
-            _game.level += 1;
-            GarageSave();
-          }
-          _game.base_restart_screen = _game.ship_screen;
-          if (_game.base_screen !== 69) {
-            let lift = gObj_First();
-            for (; lift; lift = gObj_Next(lift)) {
-              if (lift.ai_type === AI_ELEVATOR) gObj_DestroyObject(lift);
-            }
-          }
-          _game.elevator_flag = 0;
-          _game.health = 3;
+  const _handleElevatorEffect = () => {
+    if (_game.elevator_flag)
+      PlaySoundEffect(SND_ELEVATOR);
+    else
+      StopSoundEffect(SND_ELEVATOR);
+    return;
+  }
+
+  if (el_phase === 0) {
+    // when starting to lift up - unseal the floor
+    if (obj.y === 120) {
+      for (let j = 0; j <= 5; j++) {
+        SetTileI((obj.x >> 3) + j, obj.y >> 3, 0);
+      }
+    }
+
+    // upper limit of the screen is reached
+    if (ship.y === 0) {
+      el_phase = 1;
+
+      const sy = gObj_GetHeight(ship);
+      ship.y = 112 - sy;
+      base.y = 112;
+
+      ChangeScreen(0); // F_UP
+      _game.base_screen = _game.ship_screen;
+      InitNewScreen();
+
+      // now obj is invalid (InitNewScreen reenables enemies), spawn new elevator
+      obj = gObj_CreateObject();
+      obj.i = 21;
+      obj.x = base.x - 4;
+      obj.y = 128;
+      gObj_Constructor(obj, AI_ELEVATOR);
+
+      // skip position updates (goto _here)
+      _handleElevatorEffect()
+      return;
+    }
+  } else {
+    // if elevator is done lifting
+    if (base.y === 104) {
+      el_phase = 0;
+
+      // seal the floor!
+      for (let i = 0; i <= 5; i++) {
+        SetTileI(((base.x - 4) >> 3) + i, (base.y + 16) >> 3, 245);
+      }
+
+      if (_game.ship_screen !== 69) {
+        _game.level += 1;
+        GarageSave();
+      }
+      _game.base_restart_screen = _game.ship_screen;
+
+      // destroy elevator or it will roll forever
+      if (_game.base_screen !== 69) {
+        let lift = gObj_First();
+        for (; lift; lift = gObj_Next(lift)) {
+          if (lift.ai_type === AI_ELEVATOR) gObj_DestroyObject(lift);
         }
       }
 
-      ship.y -= 1;
-      base.y -= 1;
-      obj.y -= 1;
+      _game.elevator_flag = 0;
+      _game.health = 3;
 
-      if (_game.elevator_flag)
-        PlaySoundEffect(SND_ELEVATOR);
-      else
-        StopSoundEffect(SND_ELEVATOR);
+      // skip position updates (goto _here)
+      _handleElevatorEffect();
+      return;
     }
   }
+
+  // position updates (only reached when neither phase transition triggered)
+  ship.y -= 1;
+  base.y -= 1;
+  obj.y -= 1;
+
+  _handleElevatorEffect()
 }
+
+let el_phase = 0;
 
 function Update_BfgShot(obj) {
   UpdateAnimation(obj);

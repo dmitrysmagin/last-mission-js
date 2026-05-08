@@ -110,7 +110,7 @@ function getscreen(mapx, mapy) {
   return world.map[mapy * world.mapw + mapx];
 }
 
-function ChangeScreen(flag) {
+export function ChangeScreen(flag) {
   let result = 0;
   switch (flag) {
     case 0: result = getscreen(game.mapx, game.mapy - 1); break; // F_UP
@@ -143,7 +143,7 @@ function ChangeScreen(flag) {
   return 1;
 }
 
-function InitNewScreen() {
+export function InitNewScreen() {
   UnpackRoom(world, game.ship_screen);
   screen_procedure = world.room[game.ship_screen].procedure;
   InitEnemiesFromObjects(world, game.ship_screen);
