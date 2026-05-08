@@ -798,8 +798,8 @@ const yOffset = [-1, -1, -2, -2, -1, 1, 1, 2, 2, 1];
 
 function Update_Bonus(obj) {
   if (UpdateAnimation(obj) === 1) {
-    obj.y += yOffset[obj.dy % yOffset.length];
-    obj.dy = (obj.dy + 1) % yOffset.length;
+    obj.y += yOffset[(obj.dy % yOffset.length) | 0];
+    obj.dy = ((obj.dy + 1) % yOffset.length) | 0;
   }
 }
 
@@ -831,7 +831,7 @@ function Update_Smoke(obj) {
     obj.x = obj.parent.x + 8;
     obj.y = obj.parent.y - 8;
     obj.cur_frame = 0;
-  } else if (obj.cur_frame % 2) {
+  } else if ((obj.cur_frame % 2) | 0) {
     obj.x += obj.dx;
     obj.y += obj.dy;
   }

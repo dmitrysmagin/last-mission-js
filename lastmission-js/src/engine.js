@@ -628,7 +628,7 @@ function DoWinScreen() {
     win_ticks++;
   }
 
-  PutString(0 - (win_x_string % 8), 20 * 8, win_string.substr(((win_x_string / 8) | 0), 40));
+  PutString(0 - ((win_x_string % 8) | 0), 20 * 8, win_string.substr(((win_x_string / 8) | 0), 40));
 
   if (((win_x_string / 8) | 0) >= win_string.length)
     win_x_string = 0;

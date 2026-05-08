@@ -106,7 +106,7 @@ export function PlaySoundEffect(id) {
   tryResume();
 
   if (id === SND_EXPLODE) {
-    const explodeBuf = [buffers.EXPLODE0, buffers.EXPLODE1, buffers.EXPLODE2][Math.floor(RandomInt() % 3)];
+    const explodeBuf = [buffers.EXPLODE0, buffers.EXPLODE1, buffers.EXPLODE2][((RandomInt() % 3) | 0)];
     playBuffer(explodeBuf);
     return;
   }

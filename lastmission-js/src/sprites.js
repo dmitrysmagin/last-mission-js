@@ -126,7 +126,7 @@ function getTileCanvas(index) {
   let cached = tileCache.get(key);
   if (cached) return cached;
 
-  const sx = (index % TILES_PER_ROW) * TILE_SIZE;
+  const sx = ((index % TILES_PER_ROW) | 0) * TILE_SIZE;
   const sy = ((index / TILES_PER_ROW) | 0) * TILE_SIZE;
 
   cached = indexedRegionToCanvas(tileBuffer, TILES_WIDTH, sx, sy, TILE_SIZE, TILE_SIZE, palette, true);
@@ -142,7 +142,7 @@ function getFontCanvas(index) {
   let cached = fontCache.get(key);
   if (cached) return cached;
 
-  const col = index % TILES_PER_ROW;
+  const col = (index % TILES_PER_ROW) | 0;
   const row = ((index / TILES_PER_ROW) | 0) + 8; // font starts at tile row 8
   const sx = col * TILE_SIZE;
   const sy = row * TILE_SIZE;
