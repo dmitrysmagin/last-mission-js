@@ -1,4 +1,4 @@
-import { gfx_init, ClearScreen, LoadSprites, LoadLogo } from './video.js';
+import { gfx_init, ClearScreen, LoadSprites, LoadLogo, LoadSplash } from './video.js';
 import { input_init } from './input.js';
 import { timer_init, timer_start, timer_stop } from './timer.js';
 import { GameLoop, GameMode } from './engine.js';
@@ -29,9 +29,10 @@ async function main() {
     await Promise.all([
       LoadSprites(),
       LoadLogo(),
+      LoadSplash(),
       snd_init(),
     ]);
-    console.log('Sprites, logo, and sounds loaded');
+    console.log('Sprites, logo, splash, and sounds loaded');
 
     const step = GameLoop(world);
 

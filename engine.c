@@ -1004,10 +1004,7 @@ void DoSplash()
 
 	ticks_for_splash += 1;
 
-	if (ticks_for_splash > 350)
-		SetGameMode(GM_TITLE);
-
-	if (input_anykey() == 1) {
+	if (ticks_for_splash > 350 || input_anykey() == 1) {
 		input_reset();
 		ClearScreen();
 		SetGameMode(GM_TITLE);

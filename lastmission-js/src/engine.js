@@ -12,7 +12,7 @@ import {
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
 import { PlaySoundEffect, StopSoundEffect, PlayMusic } from './sound.js';
-import { gfx_flip, ClearScreen, ctx, logoWidth, logoHeight } from './video.js';
+import { gfx_flip, ClearScreen, ctx, logoWidth, logoHeight, DrawSplash, splashData } from './video.js';
 import {
   PutString, PutSpriteI, PutSpriteS, PutStream, FillScreen, SetClipGameArea, EraseBackground, PutLine
 } from './sprites.js';
@@ -734,6 +734,8 @@ function DoKeys() {
   }
 }
 
+let splash_ticks = 0;
+
 function DoSplash() {
   if (!world || world.room.length <= 1) {
     ClearScreen();
@@ -741,10 +743,15 @@ function DoSplash() {
     mode = GM_TITLE;
     return;
   }
-  ClearScreen();
-  PutString(80, 100, 'THE LAST MISSION');
-  PutString(88, 120, 'SDL - JS PORT');
-  if (input_anykey()) {
+
+  if (splash_ticks === 0) {
+    const idx = Date.now() & 3;
+    DrawSplash(idx);
+  }
+
+  splash_ticks++;
+
+  if (splash_ticks > 350 || input_anykey()) {
     input_reset();
     ClearScreen();
     SetGameMode(GM_TITLE);

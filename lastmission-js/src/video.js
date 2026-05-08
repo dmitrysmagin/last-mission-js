@@ -135,6 +135,58 @@ export async function LoadLogo() {
   logoCanvas = canvas;
 }
 
+// ---- Title splash images (loaded at startup, drawn in DoSplash) ----
+
+export const splashData = []; // [{pixels, palette, width, height}, ...]
+
+export async function LoadSplash() {
+  const names = ['title1.bmp', 'title2.bmp', 'title3.bmp', 'title4.bmp'];
+  const responses = await Promise.all(names.map(n => fetch('graphics/' + n)));
+  const buffers = await Promise.all(responses.map(r => r.arrayBuffer()));
+  for (const buf of buffers) {
+    const parsed = parseIndexedBMP(buf);
+    splashData.push({
+      pixels: parsed.pixels,
+      palette: parsed.palette,
+      width: parsed.width,
+      height: parsed.height,
+    });
+  }
+}
+
+export function DrawSplash(splashIdx) {
+  if (splashIdx < 0 || splashIdx >= splashData.length) return;
+  const data = splashData[splashIdx];
+  if (!data) return;
+
+  // Build RGBA canvas from raw Uint8Array pixel data
+  const canvas = document.createElement('canvas');
+  canvas.width = data.width;
+  canvas.height = data.height;
+  const cctx = canvas.getContext('2d');
+  const imageData = cctx.createImageData(data.width, data.height);
+  const pixels = imageData.data;
+  const pal = data.palette;
+  const src = data.pixels;
+
+  for (let y = 0; y < data.height; y++) {
+    for (let x = 0; x < data.width; x++) {
+      const idx = src[y * data.width + x];
+      const off = (y * data.width + x) * 4;
+      pixels[off]     = pal[idx * 3];
+      pixels[off + 1] = pal[idx * 3 + 1];
+      pixels[off + 2] = pal[idx * 3 + 2];
+      pixels[off + 3] = 255;
+    }
+  }
+  cctx.putImageData(imageData, 0, 0);
+
+  // Draw centered
+  const cx = (SCREEN_WIDTH - data.width) >> 1;
+  const cy = (SCREEN_HEIGHT - data.height) >> 1;
+  ctx.drawImage(canvas, cx, cy);
+}
+
 export async function LoadSprites() {
   const [spriteResp, tileResp] = await Promise.all([
     fetch('graphics/sprites.bmp'),
