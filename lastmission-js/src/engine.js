@@ -82,6 +82,8 @@ export function SetGameMode(newMode) {
   switch (newMode) {
     case GM_TITLE:
       PlayMusic(MUSIC_INTRO);
+      // To trigger enter actions.
+      title_start_flag = 0;
       break;
     case GM_GAME:
     case GM_DEMO:
@@ -812,8 +814,9 @@ function DoWinScreen() {
     win_x_string += 1;
 
   if (input_anykey() && win_ticks > 300) {
-    SetGameMode(GM_TITLE);
     input_reset();
+    ClearScreen();
+    SetGameMode(GM_TITLE);
   } else {
     const ship = gObj_Ship();
     if (ship) {
@@ -851,8 +854,9 @@ function DoGame() {
 
     case GM_DEMO:
       if (input_anykey()) {
-        SetGameMode(GM_TITLE);
         input_reset();
+        ClearScreen();
+        SetGameMode(GM_TITLE);
         game.score = 0;
         break;
       }
@@ -868,9 +872,9 @@ function DoGame() {
       }
 
       if (Keys[SC_ESCAPE]) {
+        input_reset();
         ClearScreen();
         SetGameMode(GM_TITLE);
-        input_reset();
         break;
       }
 
@@ -908,8 +912,9 @@ function DoGame() {
 
     case GM_GAMEOVER:
       if (input_anykey()) {
-        SetGameMode(GM_TITLE);
         input_reset();
+        ClearScreen();
+        SetGameMode(GM_TITLE);
       }
       break;
 
