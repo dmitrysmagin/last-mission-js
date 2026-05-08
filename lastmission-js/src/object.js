@@ -585,12 +585,13 @@ function AddBfgTarget(obj, bfg) {
   t.yt = obj.y + 8;
 }
 
+let bfg_timeout = 0;
+
 export function DoBFG(ship) {
-  let mg_timeout = 0;
-  if (--mg_timeout < 0) mg_timeout = 0;
+  if (--bfg_timeout < 0) bfg_timeout = 0;
 
   if (GKeys[KEY_FIRE]) {
-    if (!mg_timeout && !bfg_on && !_game.elevator_flag) {
+    if (!bfg_timeout && !bfg_on && !_game.elevator_flag) {
       if (!FacingLeft(ship) && !FacingRight(ship)) return;
 
       const bullet = gObj_CreateObject();
@@ -607,11 +608,11 @@ export function DoBFG(ship) {
       gObj_Constructor(bullet, AI_BFG_SHOT);
       bullet.parent = ship;
       bfg_on = 1;
-      mg_timeout = 20;
+      bfg_timeout = 20;
       PlaySoundEffect(SND_CANNON_SHOOT);
     }
   } else {
-    mg_timeout = 0;
+    bfg_timeout = 0;
   }
 }
 
