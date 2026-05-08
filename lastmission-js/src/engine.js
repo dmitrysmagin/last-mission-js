@@ -18,7 +18,7 @@ import {
 } from './sprites.js';
 import { STATUSBAR1 } from './data.js';
 import {
-  UnpackRoom, BlitRoom, BlitBackground, BlitRoomOutlines, rgb565ToCSS, GetTileI
+  UnpackRoom, BlitRoom, BlitBackground, BlitRoomOutlines, rgb565ToCSS, GetTileI, SetTileI
 } from './room.js';
 import {
   TSHIP, gObj_Ship, gObj_First, gObj_Next, gObj_CreateObject, gObj_DestroyObject, gObj_DestroyAll,
@@ -404,6 +404,30 @@ function BlitStatusData() {
 }
 
 function DestroyHiddenAreaAccess(obj, playEffects) {
+  for (let y = 0; y < obj.dy; y++) {
+    const ay = obj.y + y;
+    for (let x = 0; x < obj.dx; x++) {
+      const ax = obj.x + x;
+      SetTileI(ax >> 3, ay >> 3, 0);
+
+      if (playEffects && !(y & 15) && !(x & 15) && (ay + 16 < ACTION_SCREEN_HEIGHT)) {
+        // Create wall explosion effect
+        const exp = gObj_CreateObject();
+        exp.i = 7;
+        exp.x = ax;
+        exp.y = ay;
+        exp.anim_speed = 6;
+        exp.anim_speed_cnt = 6;
+        exp.max_frame = 2;
+        gObj_Constructor(exp, AI_EXPLOSION);
+      }
+    }
+  }
+
+  if (playEffects) {
+    PlaySoundEffect(SND_EXPLODE);
+  }
+
   gObj_DestroyObject(obj);
 }
 
