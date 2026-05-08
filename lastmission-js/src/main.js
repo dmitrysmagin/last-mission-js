@@ -1,9 +1,8 @@
-import { gfx_init, ClearScreen } from './video.js';
+import { gfx_init, ClearScreen, LoadSprites, LoadLogo } from './video.js';
 import { input_init } from './input.js';
 import { timer_init, timer_start, timer_stop } from './timer.js';
 import { GameLoop, GameMode } from './engine.js';
 import { GM_EXIT } from './constants.js';
-import { LoadSprites } from './video.js';
 import { PutString, PutSpriteI, FillScreen } from './sprites.js';
 import { load_world } from './world.js';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from './constants.js';
@@ -29,9 +28,10 @@ async function main() {
 
     await Promise.all([
       LoadSprites(),
+      LoadLogo(),
       snd_init(),
     ]);
-    console.log('Sprites and sounds loaded');
+    console.log('Sprites, logo, and sounds loaded');
 
     const step = GameLoop(world);
 

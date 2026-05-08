@@ -96,6 +96,45 @@ function parseIndexedBMP(buffer) {
   return { palette: pal, pixels, width, height };
 }
 
+// ---- Logo BMP (for title screen animation) ----
+
+export let logoCanvas = null;
+export let logoWidth = 0;
+export let logoHeight = 0;
+
+export async function LoadLogo() {
+  const resp = await fetch('graphics/logo.bmp');
+  const ab = await resp.arrayBuffer();
+  const logo = parseIndexedBMP(ab);
+
+  logoWidth = logo.width;
+  logoHeight = logo.height;
+
+  // Build RGBA canvas (no transparency — index 0 is black background)
+  const canvas = document.createElement('canvas');
+  canvas.width = logo.width;
+  canvas.height = logo.height;
+  const cctx = canvas.getContext('2d');
+  const imageData = cctx.createImageData(logo.width, logo.height);
+  const data = imageData.data;
+  const pal = logo.palette;
+  const pixels = logo.pixels;
+
+  for (let y = 0; y < logo.height; y++) {
+    for (let x = 0; x < logo.width; x++) {
+      const idx = pixels[y * logo.width + x];
+      const off = (y * logo.width + x) * 4;
+      data[off]     = pal[idx * 3];
+      data[off + 1] = pal[idx * 3 + 1];
+      data[off + 2] = pal[idx * 3 + 2];
+      data[off + 3] = 255;
+    }
+  }
+
+  cctx.putImageData(imageData, 0, 0);
+  logoCanvas = canvas;
+}
+
 export async function LoadSprites() {
   const [spriteResp, tileResp] = await Promise.all([
     fetch('graphics/sprites.bmp'),

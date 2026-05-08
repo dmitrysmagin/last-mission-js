@@ -12,9 +12,9 @@ import {
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
 import { PlaySoundEffect, StopSoundEffect, PlayMusic } from './sound.js';
-import { gfx_flip, ClearScreen } from './video.js';
+import { gfx_flip, ClearScreen, ctx, logoWidth, logoHeight } from './video.js';
 import {
-  PutString, PutSpriteI, PutSpriteS, PutStream, FillScreen, SetClipGameArea, EraseBackground
+  PutString, PutSpriteI, PutSpriteS, PutStream, FillScreen, SetClipGameArea, EraseBackground, PutLine
 } from './sprites.js';
 import { STATUSBAR1 } from './data.js';
 import {
@@ -685,6 +685,43 @@ function RenderGame(renderStatus) {
 let title_start_flag = 0;
 let youwin_start_flag = 0;
 
+// RotateLogo animation state
+let logo_num_of_lines = 0;
+let logo_speed = 2;
+let logo_mirror = 0;
+let logo_sign = 1;
+
+function RotateLogo() {
+  if (logo_speed > 0) {
+    logo_speed -= 1;
+    return;
+  }
+  logo_speed = 2;
+
+  const divisor = 23.0 / (23.0 - logo_num_of_lines);
+  let iterator = 0.0;
+
+  // Clear logo area
+  ctx.fillStyle = '#000';
+  ctx.fillRect(96, 142, logoWidth, logoHeight + 1);
+
+  for (let i = logo_num_of_lines; i < 24; i++) {
+    PutLine(96, (logo_mirror === 0 ? 142 + i : 142 + 46 - i), iterator | 0);
+    PutLine(96, (logo_mirror === 0 ? 142 + 46 - i : 142 + i), 46 - (iterator | 0));
+    iterator += divisor;
+  }
+
+  logo_num_of_lines += logo_sign;
+  if (logo_num_of_lines >= 23) {
+    logo_mirror ^= 1;
+    logo_sign = -logo_sign;
+  }
+  if (logo_num_of_lines <= 0) {
+    logo_num_of_lines = 0;
+    logo_sign = -logo_sign;
+  }
+}
+
 function DoKeys() {
   if (mode !== GM_DEMO) {
     GKeys[KEY_LEFT] = Keys[SC_LEFT] ? 1 : 0;
@@ -728,6 +765,8 @@ function DoTitle() {
     PutString(140, 44, 'ALEXEY PAVLOV');
     PutString(60, 56, 'MUSIC AND SFX: MARK BRAGA');
   }
+
+  RotateLogo();
 
   if (Keys[SC_ESCAPE]) { mode = GM_EXIT; return; }
 

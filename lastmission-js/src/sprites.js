@@ -1,5 +1,5 @@
 import { SCREEN_WIDTH, SCREEN_HEIGHT, ACTION_SCREEN_HEIGHT } from './constants.js';
-import { ctx, palette, spriteBuffer, tileBuffer, SPRITES_WIDTH, TILES_WIDTH } from './video.js';
+import { ctx, palette, spriteBuffer, tileBuffer, SPRITES_WIDTH, TILES_WIDTH, logoCanvas, logoWidth } from './video.js';
 
 // ---- SPRITESET definitions (from sprites.c) ----
 // {x, y, w, h, dx, dy, frames}
@@ -371,6 +371,11 @@ export function PutPixel(x, y, colorCSS) {
   }
   ctx.fillStyle = cachedStyle;
   ctx.fillRect(x, y, 1, 1);
+}
+
+export function PutLine(x, y, line) {
+  if (!logoCanvas) return;
+  ctx.drawImage(logoCanvas, 0, line, logoWidth, 1, x, y, logoWidth, 1);
 }
 
 export function DrawLine(x1, y1, x2, y2, colorCSS) {
