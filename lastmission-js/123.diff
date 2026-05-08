@@ -1,0 +1,64 @@
+diff --git a/lastmission-js/src/engine.js b/lastmission-js/src/engine.js
+index d0b29c9..6a1e1ba 100644
+--- a/lastmission-js/src/engine.js
++++ b/lastmission-js/src/engine.js
+@@ -8,6 +8,7 @@ import {
+   MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
+   ACTION_SCREEN_HEIGHT,
+   SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT, SND_MOVE, SND_ELEVATOR, SND_CONTACT,
++  SND_EXPLODE
+ } from './constants.js';
+ 
+ import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
+@@ -405,7 +406,7 @@ function BlitStatusData() {
+   PutString(8 * 28, STATUS_YPOS + 24, String(game.lives).padStart(2, '0'));
+ }
+ 
+-function DestroyHiddenAreaAccess(obj, playEffects) {
++export function DestroyHiddenAreaAccess(obj, playEffects) {
+   for (let y = 0; y < obj.dy; y++) {
+     const ay = obj.y + y;
+     for (let x = 0; x < obj.dx; x++) {
+diff --git a/lastmission-js/src/object.js b/lastmission-js/src/object.js
+index c5b6c14..b133a16 100644
+--- a/lastmission-js/src/object.js
++++ b/lastmission-js/src/object.js
+@@ -3,7 +3,7 @@ import { GKeys, input_reset } from './input.js';
+ import { PlaySoundEffect, StopSoundEffect } from './sound.js';
+ import { PutSpriteI, PutSpriteS, PutPixel, DrawLine, GetSpriteW, GetSpriteH, SpriteSet } from './sprites.js';
+ import { GetTileI, SetTileI, rgb565ToCSS } from './room.js';
+-import { Update_Ship, Update_Base, ChangeScreen, InitNewScreen } from './engine.js';
++import { Update_Ship, Update_Base, ChangeScreen, InitNewScreen, DestroyHiddenAreaAccess } from './engine.js';
+ import {
+   SCREEN_WIDTH, ACTION_SCREEN_HEIGHT,
+   SND_LASER_SHOOT, SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT,
+@@ -1265,12 +1265,7 @@ export function gObj_Explode(obj) {
+       return;
+ 
+     case AI_HIDDEN_AREA_ACCESS:
+-      for (let dy = 0; dy < obj.dy; dy++) {
+-        for (let dx = 0; dx < obj.dx; dx++) {
+-          SetTileI((obj.x + dx) >> 3, (obj.y + dy) >> 3, 0);
+-        }
+-      }
+-      gObj_DestroyObject(obj);
++      DestroyHiddenAreaAccess(obj, 1);
+       return;
+ 
+     case AI_BONUS:
+@@ -1484,14 +1479,7 @@ export function InitEnemiesFromObjects(world, screenIdx) {
+       en.dx = object.speed;
+       en.dy = object.minframe;
+       if (_game.hidden_level_entered) {
+-        // Clear the tiles that this hidden area access covers
+-        // Should call DestroyHiddenAreaAccess(en, 0);
+-        for (let dy = 0; dy < en.dy; dy++) {
+-          for (let dx = 0; dx < en.dx; dx++) {
+-            SetTileI((en.x + dx) >> 3, (en.y + dy) >> 3, 0);
+-          }
+-        }
+-        gObj_DestroyObject(en);
++        DestroyHiddenAreaAccess(en, 0);
+       }
+     }
+   }

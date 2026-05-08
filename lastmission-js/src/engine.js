@@ -8,6 +8,7 @@ import {
   MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
   ACTION_SCREEN_HEIGHT,
   SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT, SND_MOVE, SND_ELEVATOR, SND_CONTACT,
+  SND_EXPLODE
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
@@ -405,7 +406,7 @@ function BlitStatusData() {
   PutString(8 * 28, STATUS_YPOS + 24, String(game.lives).padStart(2, '0'));
 }
 
-function DestroyHiddenAreaAccess(obj, playEffects) {
+export function DestroyHiddenAreaAccess(obj, playEffects) {
   for (let y = 0; y < obj.dy; y++) {
     const ay = obj.y + y;
     for (let x = 0; x < obj.dx; x++) {
