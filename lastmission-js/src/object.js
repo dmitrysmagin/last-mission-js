@@ -1117,21 +1117,35 @@ function gObj_CheckDestruction(obj1, obj2) {
   const obj1_type = (obj1.flags & (GOBJ_PLAYER | GOBJ_WEAPON)) >> 5;
   const obj2_type = (obj2.flags & (GOBJ_PLAYER | GOBJ_WEAPON)) >> 5;
 
-  if (obj1_type === obj2_type) return 0;
+  /* Emulate _exit_proc label */
+  const _exit_proc = () => {
+    /* FIXME: hack for laser */
+    if (obj1.ai_type === AI_LASER) return 1;
+    if (!(obj1.flags & GOBJ_SOLID) || !(obj2.flags & GOBJ_SOLID)) return 0;
 
+    return 1;
+  }
+
+  /* don't interact with the same objects */
+  if (obj1_type === obj2_type) return _exit_proc();
+
+  /* FIXME: don't interact if it's your weapon */
   if (obj2.flags & GOBJ_WEAPON && obj1 === obj2.parent) return 0;
   if (obj1.flags & GOBJ_WEAPON && obj2 === obj1.parent) return 0;
 
-  if (obj2.ai_type === AI_GARAGE) return 0;
+  /* FIXME: hack for garage, later make more generic */
+  if (obj2.ai_type === AI_GARAGE) return _exit_proc();
 
   if (obj1.ai_type === AI_BONUS) {
+    /* Bonus hit by a bullet. Swap bonus. */
     if (obj2_type === 2) obj1.regenerate_bonus = 1;
     gObj_Explode(obj1);
-    return 0;
+    return _exit_proc();
   } else if (obj2.ai_type === AI_BONUS) {
+    /* Bonus hit by a bullet. Swap bonus. */
     if (obj1_type === 2) obj2.regenerate_bonus = 1;
     gObj_Explode(obj2);
-    return 0;
+    return _exit_proc();
   }
 
   if (obj1.flags & GOBJ_HURTS || obj2.flags & GOBJ_HURTS) {
@@ -1139,10 +1153,7 @@ function gObj_CheckDestruction(obj1, obj2) {
     if (obj2.ai_type !== AI_BFG_SHOT) gObj_Explode(obj2);
   }
 
-  if (obj1.ai_type === AI_LASER) return 1;
-  if (!(obj1.flags & GOBJ_SOLID) || !(obj2.flags & GOBJ_SOLID)) return 0;
-
-  return 1;
+  return _exit_proc();
 }
 
 export function gObj_CheckTouch(x, y, obj) {
