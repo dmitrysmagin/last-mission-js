@@ -18,7 +18,7 @@ import {
 } from './sprites.js';
 import { STATUSBAR1 } from './data.js';
 import {
-  UnpackRoom, BlitRoom, BlitBackground, BlitRoomOutlines, rgb565ToCSS
+  UnpackRoom, BlitRoom, BlitBackground, BlitRoomOutlines, rgb565ToCSS, GetTileI
 } from './room.js';
 import {
   TSHIP, gObj_Ship, gObj_First, gObj_Next, gObj_CreateObject, gObj_DestroyObject, gObj_DestroyAll,
@@ -230,6 +230,112 @@ function DoRocketLauncher(ship) {
 
       rl_timeout = 30;
       PlaySoundEffect(SND_ROCKET_SHOOT);
+    }
+  }
+}
+
+// ---- Helper functions for Update_Base ----
+
+function ShipBaseOffset(ship, base) {
+  const xs = gObj_GetWidth(ship);
+  const xb = gObj_GetWidth(base);
+  return ((xb - xs) / 2) | 0;
+}
+
+// ---- Update_Base: handles base movement when attached to ship ----
+
+export function Update_Base(base) {
+  const ship = gObj_Ship();
+  if (!ship) return;
+
+  if (game.player_attached === 1 && ship.ai_type !== AI_EXPLOSION) {
+    let playMoveSound = 0;
+
+    if (GKeys[KEY_RIGHT] === 1) {
+      if (ship.cur_frame === ship.min_frame) {
+        base.cur_frame ^= 1;
+        playMoveSound = 1;
+
+        const shipCollision = gObj_CheckTouch(ship.x + 2, ship.y, ship);
+        const baseCollision = gObj_CheckTouch(base.x + 2, base.y, base);
+
+        if (shipCollision + baseCollision === 0) {
+          if (GetTileI((base.x + 40) >> 3, (base.y + 16) >> 3)) {
+            ship.x += 2;
+            base.x += 2;
+          }
+        } else {
+          if (base.x === 280 && ChangeScreen(1)) {
+            ship.x = ShipBaseOffset(ship, base);
+            base.x = 0;
+            game.base_screen = game.ship_screen;
+            InitNewScreen();
+          }
+        }
+      } else {
+        if (ship.anim_speed_cnt === 0) {
+          ship.cur_frame -= 1;
+          ship.anim_speed_cnt = ship.anim_speed;
+        } else {
+          ship.anim_speed_cnt -= 1;
+        }
+      }
+    }
+
+    if (GKeys[KEY_LEFT] === 1) {
+      if (ship.cur_frame === ship.max_frame) {
+        base.cur_frame ^= 1;
+        playMoveSound = 1;
+
+        const shipCollision = gObj_CheckTouch(ship.x - 2, ship.y, ship);
+        const baseCollision = gObj_CheckTouch(base.x - 2, base.y, base);
+
+        if (shipCollision + baseCollision === 0) {
+          if (GetTileI((base.x - 2) >> 3, (base.y + 16) >> 3)) {
+            ship.x -= 2;
+            base.x -= 2;
+          }
+        } else {
+          if (base.x === 0 && ChangeScreen(3)) {
+            ship.x = 280 + ShipBaseOffset(ship, base);
+            base.x = 280;
+            game.base_screen = game.ship_screen;
+            InitNewScreen();
+          }
+        }
+      } else {
+        if (ship.anim_speed_cnt === 0) {
+          ship.cur_frame += 1;
+          ship.anim_speed_cnt = ship.anim_speed;
+        } else {
+          ship.anim_speed_cnt -= 1;
+        }
+      }
+    }
+
+    if (playMoveSound) {
+      PlaySoundEffect(SND_MOVE);
+    } else {
+      StopSoundEffect(SND_MOVE);
+    }
+
+    if (GKeys[KEY_UP] === 1) {
+      // If bound with base and standing on a bridge - don't allow to fly up
+      for (let f = 0; f <= 3; f++) {
+        if (GetTileI(((base.x + 8) >> 3) + f, (base.y + 16) >> 3) === 245) {
+          return;
+        }
+      }
+
+      // If standing on an elevator which is lifting up - don't allow to fly up
+      if (game.elevator_flag === 1) {
+        return;
+      }
+
+      StopSoundEffect(SND_MOVE);
+
+      game.player_attached = 0;
+      ship.y -= 2;
     }
   }
 }
