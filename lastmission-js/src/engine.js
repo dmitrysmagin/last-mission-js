@@ -441,7 +441,7 @@ function UpdateFuel() {
   return 0;
 }
 
-function Update_Ship(ship) {
+export function Update_Ship(ship) {
   const base = ship.base;
 
   if (--game.ticks_for_damage < 0) game.ticks_for_damage = 0;
@@ -810,13 +810,8 @@ function DoGame() {
         break;
       }
 
-      // Update ship
-      const ship = gObj_Ship();
-      if (ship) {
-        Update_Ship(ship);
-      }
 
-      // Update all objects
+      // Update all objects (ship, base and all enemies)
       let gobj = gObj_First();
       for (; gobj; gobj = gObj_Next(gobj)) {
         gObj_Update(gobj);

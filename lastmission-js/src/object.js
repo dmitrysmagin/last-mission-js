@@ -3,7 +3,7 @@ import { GKeys, input_reset } from './input.js';
 import { PlaySoundEffect, StopSoundEffect } from './sound.js';
 import { PutSpriteI, PutSpriteS, PutPixel, DrawLine, GetSpriteW, GetSpriteH } from './sprites.js';
 import { GetTileI, SetTileI, rgb565ToCSS } from './room.js';
-import { Update_Base } from './engine.js';
+import { Update_Ship, Update_Base } from './engine.js';
 import {
   SCREEN_WIDTH, ACTION_SCREEN_HEIGHT,
   SND_LASER_SHOOT, SND_SHORT_LASER_SHOOT, SND_ROCKET_SHOOT,
@@ -1313,7 +1313,7 @@ export function gObj_Explode(obj) {
 
 export function gObj_Update(obj) {
   switch (obj.ai_type) {
-    case AI_SHIP: break; // handled by engine
+    case AI_SHIP: Update_Ship(obj); break;
     case AI_BASE: Update_Base(obj); break;
     case AI_STATIC: Update_Static(obj); break;
     case AI_RANDOM_MOVE: Update_Random(obj); break;
