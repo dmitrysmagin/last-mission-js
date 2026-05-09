@@ -12,6 +12,7 @@ import {
 } from './constants.js';
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
+import { ResetDemo, PlayDemo } from './demo.js';
 import { PlaySoundEffect, StopSoundEffect, PlayMusic } from './sound.js';
 import { gfx_flip, ClearScreen, ctx, logoWidth, logoHeight, DrawSplash, splashData } from './video.js';
 import {
@@ -687,6 +688,7 @@ function RenderGame(renderStatus) {
 
 let title_start_flag = 0;
 let youwin_start_flag = 0;
+let ticks_before_demo = 0;
 
 // RotateLogo animation state
 let logo_num_of_lines = 0;
@@ -774,9 +776,21 @@ function DoTitle() {
     PutString(76, 36, 'REMAKE: DMITRY SMAGIN');
     PutString(140, 44, 'ALEXEY PAVLOV');
     PutString(60, 56, 'MUSIC AND SFX: MARK BRAGA');
+    ticks_before_demo = 0;
   }
 
   RotateLogo();
+
+  ticks_before_demo++;
+
+  if (ticks_before_demo >= 3660) {
+    game.easy_mode = 0;
+    ResetDemo();
+    SetGameMode(GM_DEMO);
+    input_reset();
+    InitNewGame();
+    return;
+  }
 
   if (Keys[SC_ESCAPE]) { mode = GM_EXIT; return; }
 
@@ -854,10 +868,10 @@ function DoGame() {
       break;
 
     case GM_DEMO:
-      if (input_anykey()) {
-        input_reset();
+      if (PlayDemo() || input_anykey()) {
         ClearScreen();
         SetGameMode(GM_TITLE);
+        input_reset();
         game.score = 0;
         break;
       }

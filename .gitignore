@@ -8,3 +8,4 @@ dingux/*
 *.o
 *~.*
 last-mission
+.vscode
