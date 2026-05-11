@@ -4,7 +4,14 @@ import { SCREEN_WIDTH, SCREEN_HEIGHT } from './constants.js';
 export const backbuffer = document.createElement('canvas');
 backbuffer.width = SCREEN_WIDTH;
 backbuffer.height = SCREEN_HEIGHT;
-export const ctx = backbuffer.getContext('2d');
+
+// `ctx` is reassignable so the editor can temporarily redirect drawing
+// to an offscreen canvas (mirrors the C editor's small_screen swap).
+export let ctx = backbuffer.getContext('2d');
+
+export function setRenderTarget(canvas) {
+  ctx = (canvas || backbuffer).getContext('2d');
+}
 
 // Display canvas (shown on screen)
 const display = document.getElementById('game');

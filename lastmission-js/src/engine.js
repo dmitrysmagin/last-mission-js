@@ -13,6 +13,7 @@ import {
 
 import { GKeys, Keys, input_poll, input_reset, input_anykey } from './input.js';
 import { ResetDemo, PlayDemo } from './demo.js';
+import { DoEdit, EditorReset } from './editor.js';
 import { PlaySoundEffect, StopSoundEffect, PlayMusic } from './sound.js';
 import { gfx_flip, ClearScreen, ctx, logoWidth, logoHeight, DrawSplash, splashData } from './video.js';
 import {
@@ -107,7 +108,7 @@ export function GameMode() {
   return mode;
 }
 
-function getscreen(mapx, mapy) {
+export function getscreen(mapx, mapy) {
   if (!world) return 0;
   if (mapx < 0 || mapx >= world.mapw) return 0;
   if (mapy < 0 || mapy >= world.maph) return 0;
@@ -801,6 +802,13 @@ function DoTitle() {
     input_reset();
     InitNewGame();
   }
+
+  // launch the editor
+  if (Keys[SC_E]) {
+    EditorReset();
+    SetGameMode(GM_EDITOR);
+    input_reset();
+  }
 }
 
 function DoWinScreen() {
@@ -938,6 +946,7 @@ function DoGame() {
       break;
 
     case GM_EDITOR:
+      DoEdit(world);
       break;
   }
 }

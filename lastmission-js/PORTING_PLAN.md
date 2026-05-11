@@ -21,6 +21,7 @@ Build with Vite (`npm run dev` / `npm run build`).
 | `object.js` | 1487 | Object pool, AI, weapons, collision, garages |
 | `engine.js` | 951 | Game state machine, ship/base/elevator logic |
 | `demo.js` | 419 | Demo recording/playback (RecordDemo disabled) |
+| `editor.js` | 325 | Level editor — MAPEDIT / ROOMVIEW / ROOMEDIT modes |
 
 ---
 
@@ -138,7 +139,7 @@ Build with Vite (`npm run dev` / `npm run build`).
 
 ### Phase 9: Known Issues & Placeholders
 
-- [ ] **Editor mode** (`GM_EDITOR`) — empty stub
+- [x] **Editor mode** (`GM_EDITOR`) — MAPEDIT (browse world map), ROOMVIEW (preview room + cycle pattern/sprite sets), ROOMEDIT (move/swap patterns). Launched with `E` from title; ESC returns to title. Use `save_world` to persist changes.
 - [ ] **God mode** — commented out in `gObj_Explode`
 - [ ] **PublishScore / leaderboard** — placeholder only in `InitNewScreen`
 - [ ] **Contact sound** — commented out in `Update_Ship` attach check

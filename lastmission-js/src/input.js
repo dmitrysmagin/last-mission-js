@@ -2,6 +2,7 @@ import {
   SC_UP, SC_DOWN, SC_LEFT, SC_RIGHT,
   SC_ESCAPE, SC_ENTER, SC_CONTROL,
   SC_SPACE, SC_E, SC_S, SC_F,
+  SC_Z, SC_X, SC_C, SC_V,
   SC_TAB, SC_BACKSPACE, SC_LSHIFT, SC_ALT,
 } from './constants.js';
 
@@ -23,6 +24,10 @@ const keyToScan = {
   'e': SC_E,
   's': SC_S,
   'f': SC_F,
+  'z': SC_Z,
+  'x': SC_X,
+  'c': SC_C,
+  'v': SC_V,
   'Control': SC_CONTROL,
   'Shift': SC_LSHIFT,
   'Alt': SC_ALT,
