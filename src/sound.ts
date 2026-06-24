@@ -5,52 +5,53 @@ import {
   SND_MOVE, SND_ELEVATOR,
   MUSIC_STOP, MUSIC_INTRO, MUSIC_GAME,
 } from './constants.js';
+import type { SoundEffectId, MusicId } from './constants.js';
 
-let audioCtx = null;
-const buffers = {};
-let musicIntroBuffer = null;
-let musicGameBuffer = null;
-let currentMusicSource = null;
-let currentMusicId = MUSIC_STOP;
-const loopingSources = {};
+let audioCtx: AudioContext | null = null;
+const buffers: Record<number | string, AudioBuffer> = {};
+let musicIntroBuffer: AudioBuffer | null = null;
+let musicGameBuffer: AudioBuffer | null = null;
+let currentMusicSource: AudioBufferSourceNode | null = null;
+let currentMusicId: MusicId = MUSIC_STOP;
+const loopingSources: Record<number, AudioBufferSourceNode> = {};
 let isInitialized = false;
 
-async function loadSound(url) {
+async function loadSound(url: string): Promise<AudioBuffer> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to load ${url}`);
   const arrayBuffer = await response.arrayBuffer();
-  return await audioCtx.decodeAudioData(arrayBuffer);
+  return await audioCtx!.decodeAudioData(arrayBuffer);
 }
 
-function playBuffer(buffer, loop = false) {
+function playBuffer(buffer: AudioBuffer, loop = false): AudioBufferSourceNode | null {
   if (!buffer) return null;
-  const source = audioCtx.createBufferSource();
+  const source = audioCtx!.createBufferSource();
   source.buffer = buffer;
   source.loop = loop;
-  source.connect(audioCtx.destination);
+  source.connect(audioCtx!.destination);
   source.start(0);
   return source;
 }
 
-function stopSource(source) {
+function stopSource(source: AudioBufferSourceNode | null): void {
   if (source) {
-    try { source.stop(0); } catch (e) { }
+    try { source.stop(0); } catch (_e) { /* ignore */ }
   }
 }
 
-function tryResume() {
+function tryResume(): void {
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
 }
 
-export async function snd_init() {
+export async function snd_init(): Promise<number> {
   if (isInitialized) return 1;
   isInitialized = true;
 
   try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch (e) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  } catch (_e) {
     console.warn('Web Audio not available');
     return 0;
   }
@@ -71,7 +72,7 @@ export async function snd_init() {
     ];
 
     const musicPromises = [
-      loadSound('sound/mission.ogg').then(b => { musicIntroBuffer = b; }),
+      loadSound('sound/music_intro.ogg').then(b => { musicIntroBuffer = b; }),
       loadSound('sound/music.ogg').then(b => { musicGameBuffer = b; }),
     ];
 
@@ -84,15 +85,15 @@ export async function snd_init() {
   return 1;
 }
 
-export function snd_quit() {
+export function snd_quit(): void {
   tryResume();
   if (currentMusicSource) {
     stopSource(currentMusicSource);
     currentMusicSource = null;
   }
   Object.keys(loopingSources).forEach(key => {
-    stopSource(loopingSources[key]);
-    delete loopingSources[key];
+    stopSource(loopingSources[+key]);
+    delete loopingSources[+key];
   });
   if (audioCtx) {
     audioCtx.close();
@@ -101,13 +102,13 @@ export function snd_quit() {
   isInitialized = false;
 }
 
-export function PlaySoundEffect(id) {
+export function PlaySoundEffect(id: SoundEffectId): void {
   if (!audioCtx) return;
   tryResume();
 
   if (id === SND_EXPLODE) {
     const explodeBuf = [buffers.EXPLODE0, buffers.EXPLODE1, buffers.EXPLODE2][((RandomInt() % 3) | 0)];
-    playBuffer(explodeBuf);
+    if (explodeBuf) playBuffer(explodeBuf);
     return;
   }
 
@@ -116,20 +117,20 @@ export function PlaySoundEffect(id) {
 
   if (id === SND_MOVE) {
     if (loopingSources[SND_MOVE]) return;
-    loopingSources[SND_MOVE] = playBuffer(buf, true);
+    loopingSources[SND_MOVE] = playBuffer(buf, true)!;
     return;
   }
 
   if (id === SND_ELEVATOR) {
     if (loopingSources[SND_ELEVATOR]) return;
-    loopingSources[SND_ELEVATOR] = playBuffer(buf, true);
+    loopingSources[SND_ELEVATOR] = playBuffer(buf, true)!;
     return;
   }
 
   playBuffer(buf);
 }
 
-export function StopSoundEffect(id) {
+export function StopSoundEffect(id: number): void {
   if (!audioCtx) return;
   if (loopingSources[id]) {
     stopSource(loopingSources[id]);
@@ -137,7 +138,7 @@ export function StopSoundEffect(id) {
   }
 }
 
-export function PlayMusic(id) {
+export function PlayMusic(id: MusicId): void {
   if (!audioCtx) return;
   tryResume();
 
@@ -147,7 +148,7 @@ export function PlayMusic(id) {
   stopSource(currentMusicSource);
   currentMusicSource = null;
 
-  let buffer = null;
+  let buffer: AudioBuffer | null = null;
   switch (id) {
     case MUSIC_INTRO: buffer = musicIntroBuffer; break;
     case MUSIC_GAME: buffer = musicGameBuffer; break;

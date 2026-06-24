@@ -1,0 +1,343 @@
+export class Pattern {
+  x = 0;
+  y = 0;
+  index = 0;
+}
+
+export class ObjectData {
+  x = 0;
+  y = 0;
+  index = 0;
+  speed = 0;
+  minframe = 0;
+  maxframe = 0;
+  ai = 0;
+  garage_id = 0;
+}
+
+export class Bgline {
+  x1 = 0; y1 = 0;
+  x2 = 0; y2 = 0;
+}
+
+export class Room {
+  xs = 0;
+  ys = 0;
+  pattern_num = 0;
+  object_num = 0;
+  bg_type = 0;
+  bg_num = 0;
+  background = 0;
+  shadow = 0;
+  line_light = 0;
+  line_shadow = 0;
+  procedure = 0;
+  bonus = 0;
+  pattern: Pattern[] = [];
+  object: ObjectData[] = [];
+  bgline: Bgline[] = [];
+}
+
+export class Patternset {
+  xs = 0;
+  ys = 0;
+  data!: Uint16Array;
+}
+
+export class World {
+  room_num = 0;
+  patternset_num = 0;
+  spriteset_num = 0;
+  tileset_num = 0;
+  fontset_num = 0;
+  bgspriteset_num = 0;
+  maph = 0;
+  mapw = 0;
+  map!: Uint16Array;
+  room: Room[] = [];
+  patternset: Patternset[] = [];
+}
+
+function trim(s: string): string {
+  return s.trim();
+}
+
+function isBlank(s: string): boolean {
+  return s.trim() === '';
+}
+
+function isComment(s: string): boolean {
+  return s.trim().startsWith('#');
+}
+
+function nextLine(lines: string[], pos: number): number {
+  while (pos < lines.length) {
+    const l = lines[pos];
+    if (!isBlank(l) && !isComment(l)) return pos;
+    pos++;
+  }
+  return -1;
+}
+
+function splitInts(line: string): number[] {
+  return trim(line).split(/\s+/).map(s => parseInt(s, 10));
+}
+
+export async function load_world(name: string): Promise<World> {
+  const resp = await fetch(name);
+  const text = await resp.text();
+  const lines = text.split('\n');
+  let pos = 0;
+
+  const world = new World();
+
+  pos = nextLine(lines, pos);
+  if (pos === -1) throw new Error('Missing LASTMISSION header');
+  {
+    const parts = trim(lines[pos]).split(/\s+/);
+    if (parts[0] !== 'LASTMISSION') throw new Error('Not a valid .dat file');
+    const ver = parseInt(parts[1], 10);
+    if (ver !== 1) throw new Error(`Unknown version: ${ver}`);
+    pos++;
+  }
+
+  pos = nextLine(lines, pos);
+  if (pos === -1) throw new Error('Missing WORLD chunk');
+  {
+    const parts = trim(lines[pos]).split(/\s+/);
+    if (parts[0] !== 'WORLD') throw new Error('Expected WORLD chunk');
+    world.room_num = parseInt(parts[1], 10);
+    world.patternset_num = parseInt(parts[2], 10);
+    world.spriteset_num = parseInt(parts[3], 10);
+    world.tileset_num = parseInt(parts[4], 10);
+    world.fontset_num = parseInt(parts[5], 10);
+    world.bgspriteset_num = parseInt(parts[6], 10);
+    pos++;
+  }
+
+  for (let i = 0; i < world.room_num; i++) {
+    world.room.push(new Room());
+  }
+  for (let i = 0; i < world.patternset_num; i++) {
+    world.patternset.push(new Patternset());
+  }
+
+  pos = nextLine(lines, pos);
+  if (pos === -1) throw new Error('Missing MAP chunk');
+  {
+    const parts = trim(lines[pos]).split(/\s+/);
+    if (parts[0] !== 'MAP') throw new Error('Expected MAP chunk');
+    world.maph = parseInt(parts[1], 10);
+    world.mapw = parseInt(parts[2], 10);
+    pos++;
+  }
+
+  world.map = new Uint16Array(world.maph * world.mapw);
+  for (let y = 0; y < world.maph; y++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error('Unexpected end of map data');
+    const vals = splitInts(lines[pos]);
+    for (let x = 0; x < world.mapw; x++) {
+      world.map[y * world.mapw + x] = vals[x] || 0;
+    }
+    pos++;
+  }
+
+  for (let i = 0; i < world.room_num; i++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error(`Missing ROOM ${i}`);
+    const parts = trim(lines[pos]).split(/\s+/);
+    if (parts[0] !== 'ROOM') throw new Error(`Expected ROOM ${i}`);
+    const room = world.room[i];
+    room.xs = parseInt(parts[1], 10);
+    room.ys = parseInt(parts[2], 10);
+    room.pattern_num = parseInt(parts[3], 10);
+    room.object_num = parseInt(parts[4], 10);
+    room.bg_type = parseInt(parts[5], 10);
+    room.bg_num = parseInt(parts[6], 10);
+    room.background = parseInt(parts[7], 16);
+    room.shadow = parseInt(parts[8], 16);
+    room.line_light = parseInt(parts[9], 16);
+    room.line_shadow = parseInt(parts[10], 16);
+    room.procedure = parseInt(parts[11], 10);
+    room.bonus = parseInt(parts[12], 10);
+    pos++;
+  }
+
+  for (let i = 0; i < world.room_num; i++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error(`Missing PATTERN ${i}`);
+    {
+      const parts = trim(lines[pos]).split(/\s+/);
+      if (parts[0] !== 'PATTERN') throw new Error(`Expected PATTERN ${i}`);
+      pos++;
+    }
+    const room = world.room[i];
+    for (let j = 0; j < room.pattern_num; j++) {
+      pos = nextLine(lines, pos);
+      if (pos === -1) throw new Error(`Unexpected end in PATTERN ${i}`);
+      const vals = splitInts(lines[pos]);
+      const p = new Pattern();
+      p.x = vals[0] || 0;
+      p.y = vals[1] || 0;
+      p.index = vals[2] || 0;
+      room.pattern.push(p);
+      pos++;
+    }
+  }
+
+  for (let i = 0; i < world.room_num; i++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error(`Missing OBJECT ${i}`);
+    {
+      const parts = trim(lines[pos]).split(/\s+/);
+      if (parts[0] !== 'OBJECT') throw new Error(`Expected OBJECT ${i}`);
+      pos++;
+    }
+    const room = world.room[i];
+    for (let j = 0; j < room.object_num; j++) {
+      pos = nextLine(lines, pos);
+      if (pos === -1) throw new Error(`Unexpected end in OBJECT ${i}`);
+      const vals = splitInts(lines[pos]);
+      const o = new ObjectData();
+      o.x = vals[0] || 0;
+      o.y = vals[1] || 0;
+      o.index = vals[2] || 0;
+      o.speed = vals[3] || 0;
+      o.minframe = vals[4] || 0;
+      o.maxframe = vals[5] || 0;
+      o.ai = vals[6] || 0;
+      o.garage_id = vals[7] || 0;
+      room.object.push(o);
+      pos++;
+    }
+  }
+
+  for (let i = 0; i < world.room_num; i++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error(`Missing BGLINE ${i}`);
+    {
+      const parts = trim(lines[pos]).split(/\s+/);
+      if (parts[0] !== 'BGLINE') throw new Error(`Expected BGLINE ${i}`);
+      pos++;
+    }
+    const room = world.room[i];
+    for (let j = 0; j < room.bg_num; j++) {
+      pos = nextLine(lines, pos);
+      if (pos === -1) throw new Error(`Unexpected end in BGLINE ${i}`);
+      const vals = splitInts(lines[pos]);
+      const b = new Bgline();
+      b.x1 = vals[0] || 0;
+      b.y1 = vals[1] || 0;
+      b.x2 = vals[2] || 0;
+      b.y2 = vals[3] || 0;
+      room.bgline.push(b);
+      pos++;
+    }
+  }
+
+  for (let i = 0; i < world.patternset_num; i++) {
+    pos = nextLine(lines, pos);
+    if (pos === -1) throw new Error(`Missing PATTERNSET ${i}`);
+    {
+      const parts = trim(lines[pos]).split(/\s+/);
+      if (parts[0] !== 'PATTERNSET') throw new Error(`Expected PATTERNSET ${i}`);
+      const pset = world.patternset[i];
+      pset.xs = parseInt(parts[1], 10);
+      pset.ys = parseInt(parts[2], 10);
+      pos++;
+    }
+    const pset = world.patternset[i];
+    pset.data = new Uint16Array(pset.xs * pset.ys);
+    for (let y = 0; y < pset.ys; y++) {
+      pos = nextLine(lines, pos);
+      if (pos === -1) throw new Error(`Unexpected end in PATTERNSET ${i}`);
+      const vals = splitInts(lines[pos]);
+      for (let x = 0; x < pset.xs; x++) {
+        pset.data[y * pset.xs + x] = vals[x] || 0;
+      }
+      pos++;
+    }
+  }
+
+  return world;
+}
+
+export function free_world(world: World): void {
+  world.room = [];
+  world.patternset = [];
+  world.map = null!;
+}
+
+export function save_world(world: World): void {
+  const lines: string[] = [];
+
+  lines.push('LASTMISSION 1', '');
+
+  lines.push(`WORLD ${world.room_num} ${world.patternset_num} ${world.spriteset_num} ${world.tileset_num} ${world.fontset_num} ${world.bgspriteset_num}`, '');
+
+  lines.push(`MAP ${world.maph} ${world.mapw}`);
+  for (let y = 0; y < world.maph; y++) {
+    const row: number[] = [];
+    for (let x = 0; x < world.mapw; x++) {
+      row.push(world.map[y * world.mapw + x]);
+    }
+    lines.push(row.join(' '));
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`ROOM ${room.xs} ${room.ys} ${room.pattern_num} ${room.object_num} ${room.bg_type} ${room.bg_num} ${room.background.toString(16)} ${room.shadow.toString(16)} ${room.line_light.toString(16)} ${room.line_shadow.toString(16)} ${room.procedure} ${room.bonus}`);
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`PATTERN ${i}`);
+    for (const p of room.pattern) {
+      lines.push(`${p.x} ${p.y} ${p.index}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`OBJECT ${i}`);
+    for (const o of room.object) {
+      lines.push(`${o.x} ${o.y} ${o.index} ${o.speed} ${o.minframe} ${o.maxframe} ${o.ai} ${o.garage_id}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.room_num; i++) {
+    const room = world.room[i];
+    lines.push(`BGLINE ${i}`);
+    for (const b of room.bgline) {
+      lines.push(`${b.x1} ${b.y1} ${b.x2} ${b.y2}`);
+    }
+  }
+  lines.push('');
+
+  for (let i = 0; i < world.patternset_num; i++) {
+    const pset = world.patternset[i];
+    lines.push(`PATTERNSET ${i} ${pset.xs} ${pset.ys}`);
+    for (let y = 0; y < pset.ys; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < pset.xs; x++) {
+        row.push(pset.data[y * pset.xs + x]);
+      }
+      lines.push(row.join(' '));
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'lastmission.dat';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
